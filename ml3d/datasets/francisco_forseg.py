@@ -2,22 +2,23 @@ import numpy as np
 import os, argparse, pickle, sys
 from os.path import exists, join, isfile, dirname, abspath, split
 import logging
-
+import glob
 from sklearn.neighbors import KDTree
 import yaml
-
+from pathlib import Path
 from .base_dataset import BaseDataset, BaseDatasetSplit
 from .utils import DataProcessing
 from ..utils import make_dir, DATASET
-
+import json
 log = logging.getLogger(__name__)
 
 
 class FrancForSeg(BaseDataset):
-    """This class is used to create a dataset based on the Francisco Forest Segmentation
-    dataset, and used in visualizer, training, or testing.
+    """This class is used to create a dataset based on the Francisco
+     Forest Segmentation Synthetic dataset, and used in visualizer, training, or testing.
 
-    The dataset is best for semantic scene understanding.
+    DOI https://doi.org/10.1007/978-3-031-78128-5_5
+    github https://github.com/lrse/synthetic-forest-datasets
     """
 
     def __init__(self,
@@ -31,26 +32,13 @@ class FrancForSeg(BaseDataset):
                      101130274, 476491114, 9833174, 129609852, 4506626, 1168181
                  ],
                  ignored_label_inds=[0],
-                 test_result_folder='./test',
-                 test_split=[
-                     '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
-                     '21'
-                 ],
-                 training_split=[
-                     '00', '01', '02', '03', '04', '05', '06', '07', '09', '10'
-                 ],
-                 validation_split=['08'],
-                 all_split=[
-                     '00', '01', '02', '03', '04', '05', '06', '07', '09', '08',
-                     '10', '11', '12', '13', '14', '15', '16', '17', '18', '19',
-                     '20', '21'
-                 ],
+                 test_result_folder='./test', # backup: /home/fzhcis/mylab/data/synthetic-lidar-point-clouds-tree-simulator/LiDAR-like-Dataset/test_result
                  **kwargs):
         """Initialize the function by passing the dataset and other details.
 
         Args:
             dataset_path: The path to the dataset to use.
-            name: The name of the dataset (Semantic3D in this case).
+            name: The name of the dataset.
             cache_dir: The directory where the cache is stored.
             use_cache: Indicates if the dataset should be cached.
             class_weights: The class weights to use in the dataset.
@@ -67,35 +55,25 @@ class FrancForSeg(BaseDataset):
                          class_weights=class_weights,
                          ignored_label_inds=ignored_label_inds,
                          test_result_folder=test_result_folder,
-                         test_split=test_split,
-                         training_split=training_split,
-                         validation_split=validation_split,
-                         all_split=all_split,
                          **kwargs)
 
         cfg = self.cfg
 
         self.label_to_names = self.get_label_to_names()
         self.num_classes = len(self.label_to_names)
+        self.label_values = np.sort([k for k, v in self.label_to_names.items()])
+        self.label_to_idx = {l: i for i, l in enumerate(self.label_values)}
+        self.ignored_labels = np.array([0])
+        self.train_test_split_json_dir = Path(cfg.train_test_split_json_dir)
+        self.train_files = json.load(open(self.train_test_split_json_dir / 'shuffled_train_file_list.json'))
+        self.test_files = json.load(open(self.train_test_split_json_dir / 'shuffled_test_file_list.json'))
+        self.val_files = json.load(open(self.train_test_split_json_dir / 'shuffled_val_file_list.json'))
 
-        data_config = join(dirname(abspath(__file__)), '_resources/',
-                           'semantic-kitti.yaml')
-        DATA = yaml.safe_load(open(data_config, 'r'))
-        remap_dict = DATA["learning_map_inv"]
+        self.train_files = sorted([Path(cfg.dataset_path) / f"{f}.txt" for f in self.train_files])
+        self.test_files = sorted([Path(cfg.dataset_path) / f"{f}.txt" for f in self.test_files])
+        self.val_files = sorted([Path(cfg.dataset_path) / f"{f}.txt" for f in self.val_files])
 
-        # make lookup table for mapping
-        max_key = max(remap_dict.keys())
-        remap_lut = np.zeros((max_key + 100), dtype=np.int32)
-        remap_lut[list(remap_dict.keys())] = list(remap_dict.values())
 
-        remap_dict_val = DATA["learning_map"]
-        max_key = max(remap_dict_val.keys())
-        remap_lut_val = np.zeros((max_key + 100), dtype=np.int32)
-        remap_lut_val[list(remap_dict_val.keys())] = list(
-            remap_dict_val.values())
-
-        self.remap_lut_val = remap_lut_val
-        self.remap_lut = remap_lut
 
     @staticmethod
     def get_label_to_names():
@@ -106,26 +84,10 @@ class FrancForSeg(BaseDataset):
             values are the corresponding names.
         """
         label_to_names = {
-            0: 'unlabeled',
-            1: 'car',
-            2: 'bicycle',
-            3: 'motorcycle',
-            4: 'truck',
-            5: 'other-vehicle',
-            6: 'person',
-            7: 'bicyclist',
-            8: 'motorcyclist',
-            9: 'road',
-            10: 'parking',
-            11: 'sidewalk',
-            12: 'other-ground',
-            13: 'building',
-            14: 'fence',
-            15: 'vegetation',
-            16: 'trunk',
-            17: 'terrain',
-            18: 'pole',
-            19: 'traffic-sign'
+            0 : 'Terrain',
+            1 : 'Trunk',
+            2 : 'Canopy',
+            3 : 'Understory', # including bushes, grass and other vegetation
         }
         return label_to_names
 
@@ -139,7 +101,33 @@ class FrancForSeg(BaseDataset):
         Returns:
             A dataset split object providing the requested subset of the data.
         """
-        return SemanticKITTISplit(self, split=split)
+        return FrancForSegSplit(self, split=split)
+    
+    def get_split_list(self, split):
+        """Returns the list of data splits available.
+
+        Args:
+            split: A string identifying the dataset split that is usually one of
+            'training', 'test', 'validation', or 'all'.
+
+        Returns:
+            A dataset split object providing the requested subset of the data.
+
+        Raises:
+            ValueError: Indicates that the split name passed is incorrect. The split name should be one of
+            'training', 'test', 'validation', or 'all'.
+        """
+        if split in ['test', 'testing']:
+            files = self.test_files
+        elif split in ['train', 'training']:
+            files = self.train_files
+        elif split in ['val', 'validation']:
+            files = self.val_files
+        elif split in ['all']:
+            files = self.val_files + self.train_files + self.test_files
+        else:
+            raise ValueError(f"Invalid split {split}")
+        return files
 
     def is_tested(self, attr):
         """Checks if a datum in the dataset has been tested.
@@ -153,16 +141,14 @@ class FrancForSeg(BaseDataset):
         """
         cfg = self.cfg
         name = attr['name']
-        name_seq, name_points = name.split("_")
-        test_path = join(cfg.test_result_folder, 'sequences')
-        save_path = join(test_path, name_seq, 'predictions')
-        test_file_name = name_points
-        store_path = join(save_path, name_points + '.label')
+        path = cfg.test_result_folder
+        store_path = join(path, self.name, name + '.labels')
         if exists(store_path):
             print("{} already exists.".format(store_path))
             return True
         else:
             return False
+        pass
 
     def save_test_result(self, results, attr):
         """Saves the output of a model.
@@ -172,131 +158,48 @@ class FrancForSeg(BaseDataset):
             attr: The attributes that correspond to the outputs passed in results.
         """
         cfg = self.cfg
-        pred = results['predict_labels']
         name = attr['name']
-        name_seq, name_points = name.split("_")
+        path = cfg.test_result_folder
+        make_dir(path)
 
-        test_path = join(cfg.test_result_folder, 'sequences')
-        make_dir(test_path)
-        save_path = join(test_path, name_seq, 'predictions')
-        make_dir(save_path)
-        test_file_name = name_points
-        pred = results['predict_labels']
+        pred = results['predict_labels'] + 1
+        store_path = join(path, self.name, name + '.labels')
+        make_dir(Path(store_path).parent)
+        np.savetxt(store_path, pred.astype(np.int32), fmt='%d')
 
-        for ign in cfg.ignored_label_inds:
-            pred[pred >= ign] += 1
-
-        store_path = join(save_path, name_points + '.label')
-
-        pred = self.remap_lut[pred].astype(np.uint32)
-        pred.tofile(store_path)
-
-    def save_test_result_kpconv(self, results, inputs):
-        cfg = self.cfg
-        for j in range(1):
-            name = inputs['attr']['name']
-            name_seq, name_points = name.split("_")
-
-            test_path = join(cfg.test_result_folder, 'sequences')
-            make_dir(test_path)
-            save_path = join(test_path, name_seq, 'predictions')
-            make_dir(save_path)
-
-            test_file_name = name_points
-
-            proj_inds = inputs['data'].reproj_inds[0]
-            probs = results[proj_inds, :]
-
-            pred = np.argmax(probs, 1)
-
-            store_path = join(save_path, name_points + '.label')
-            pred = pred + 1
-            pred = self.remap_lut[pred].astype(np.uint32)
-            pred.tofile(store_path)
-
-    def get_split_list(self, split):
-        """Returns a dataset split.
-
-        Args:
-            split: A string identifying the dataset split that is usually one of
-            'training', 'test', 'validation', or 'all'.
-
-        Returns:
-            A dataset split object providing the requested subset of the data.
-
-        Raises:
-            ValueError: Indicates that the split name passed is incorrect. The split name should be one of
-            'training', 'test', 'validation', or 'all'.
-        """
-        cfg = self.cfg
-        dataset_path = cfg.dataset_path
-        file_list = []
-
-        if split in ['train', 'training']:
-            seq_list = cfg.training_split
-        elif split in ['test', 'testing']:
-            seq_list = cfg.test_split
-        elif split in ['val', 'validation']:
-            seq_list = cfg.validation_split
-        elif split in ['all']:
-            seq_list = cfg.all_split
-        else:
-            raise ValueError("Invalid split {}".format(split))
-
-        for seq_id in seq_list:
-            pc_path = join(dataset_path, 'dataset', 'sequences', seq_id,
-                           'velodyne')
-            file_list.append(
-                [join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
-
-        file_list = np.concatenate(file_list, axis=0)
-
-        return file_list
+        log.info("Saved {} in {}.".format(name, store_path))
 
 
-class SemanticKITTISplit(BaseDatasetSplit):
+
+
+
+class FrancForSegSplit(BaseDatasetSplit):
 
     def __init__(self, dataset, split='training'):
         super().__init__(dataset, split=split)
+        self.cfg = dataset.cfg
+        path_list = dataset.get_split_list(split)
+
+        self.path_list = path_list
         log.info("Found {} pointclouds for {}".format(len(self.path_list),
                                                       split))
-        self.remap_lut_val = dataset.remap_lut_val
 
     def __len__(self):
         return len(self.path_list)
 
     def get_data(self, idx):
-        pc_path = self.path_list[idx]
-        points = DataProcessing.load_pc_kitti(pc_path)
-
-        dir, file = split(pc_path)
-        label_path = join(dir, '../labels', file[:-4] + '.label')
-        if not exists(label_path):
-            labels = np.zeros(np.shape(points)[0], dtype=np.int32)
-            if self.split not in ['test', 'all']:
-                raise FileNotFoundError(f' Label file {label_path} not found')
-
-        else:
-            labels = DataProcessing.load_label_kitti(
-                label_path, self.remap_lut_val).astype(np.int32)
-
-        data = {
-            'point': points[:, 0:3],
-            'feat': None,
-            'label': labels,
-        }
-
-        return data
+        path = self.path_list[idx]
+        points = np.loadtxt(path[1], dtype=np.float32)
+        label = np.loadtxt(path[2], dtype=np.int64)
+        return {'point': points, 'feat': None, 'label': label}
 
     def get_attr(self, idx):
-        pc_path = self.path_list[idx]
-        dir, file = split(pc_path)
-        _, seq = split(split(dir)[0])
-        name = '{}_{}'.format(seq, file[:-4])
-
-        pc_path = str(pc_path)
-        attr = {'idx': idx, 'name': name, 'path': pc_path, 'split': self.split}
-        return attr
+        name = self.path_list[idx][1].split('/')[-1].split('.')[0]
+        return {
+            'name': name,
+            'path': str(Path(self.path_list[idx][1])),
+            'split': self.split
+        }
 
 
-DATASET._register_module(SemanticKITTI)
+DATASET._register_module(FrancForSeg)
