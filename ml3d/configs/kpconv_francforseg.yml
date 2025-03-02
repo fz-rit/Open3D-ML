@@ -3,7 +3,7 @@ dataset:
   dataset_path: /home/fzhcis/mylab/data/synthetic-lidar-point-clouds-tree-simulator/LiDAR-like-Dataset/
   train_test_split_json_dir: /home/fzhcis/mylab/data/synthetic-lidar-point-clouds-tree-simulator/LiDAR-like-Dataset/train_test_split/
   cache_dir: ./logs/cache/
-  class_weights: [5181602, 5012952, 6830086, 1311528, 10476365, 946982, 334860, 269353]
+  class_weights: [2_050_652, 12_852_250, 43_355_279, 62_201_819]
   test_result_folder: ./test
   use_cache: true
   steps_per_epoch_train: 500
@@ -14,24 +14,28 @@ model:
   KP_extent: 1.2
   KP_influence: linear
   aggregation_mode: sum
-  architecture: ['simple',
-                'resnetb',
-                'resnetb_strided',
-                'resnetb',
-                'resnetb_strided',
-                'resnetb',
-                'resnetb_strided',
-                'resnetb',
-                'resnetb_strided',
-                'resnetb',
-                'nearest_upsample',
-                'unary',
-                'nearest_upsample',
-                'unary',
-                'nearest_upsample',
-                'unary',
-                'nearest_upsample',
-                'unary']
+  architecture:
+  - simple
+  - resnetb
+  - resnetb_strided
+  - resnetb
+  - resnetb
+  - resnetb_strided
+  - resnetb
+  - resnetb
+  - resnetb_strided
+  - resnetb
+  - resnetb
+  - resnetb_strided
+  - resnetb
+  - nearest_upsample
+  - unary
+  - nearest_upsample
+  - unary
+  - nearest_upsample
+  - unary
+  - nearest_upsample
+  - unary
   augment_color: 1.0
   augment_noise: 0.001
   augment_rotation: vertical

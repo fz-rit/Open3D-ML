@@ -6,10 +6,13 @@ import glob
 from sklearn.neighbors import KDTree
 import yaml
 from pathlib import Path
-from .base_dataset import BaseDataset, BaseDatasetSplit
-from .utils import DataProcessing
-from ..utils import make_dir, DATASET
+import sys
+sys.path.append('/home/fzhcis/mylab/Open3D-ML/ml3d/')  # Adjust the path accordingly
+from datasets.base_dataset import BaseDataset, BaseDatasetSplit
+from datasets.utils import DataProcessing
+from utils import make_dir, DATASET
 import json
+import pandas as pd
 log = logging.getLogger(__name__)
 
 
@@ -26,10 +29,11 @@ class FrancForSeg(BaseDataset):
                  name='FrancForSeg',
                  cache_dir='./logs/cache',
                  use_cache=False,
-                 class_weights=[
-                     55437630, 320797, 541736, 2578735, 3274484, 552662, 184064,
-                     78858, 240942562, 17294618, 170599734, 6369672, 230413074,
-                     101130274, 476491114, 9833174, 129609852, 4506626, 1168181
+                 class_weights=[ # Actually frequency of each class
+                     2_050_652, # Class 0: Terrain
+                     12_852_250,  # Class 1: Trunk
+                     43_355_279, # Class 2: Canopy
+                     62_201_819 # Class 3: Understorey, including bushes, grass and other vegetation
                  ],
                  ignored_label_inds=[0],
                  test_result_folder='./test', # backup: /home/fzhcis/mylab/data/synthetic-lidar-point-clouds-tree-simulator/LiDAR-like-Dataset/test_result
@@ -72,8 +76,6 @@ class FrancForSeg(BaseDataset):
         self.train_files = sorted([Path(cfg.dataset_path) / f"{f}.txt" for f in self.train_files])
         self.test_files = sorted([Path(cfg.dataset_path) / f"{f}.txt" for f in self.test_files])
         self.val_files = sorted([Path(cfg.dataset_path) / f"{f}.txt" for f in self.val_files])
-
-
 
     @staticmethod
     def get_label_to_names():
@@ -171,8 +173,6 @@ class FrancForSeg(BaseDataset):
 
 
 
-
-
 class FrancForSegSplit(BaseDatasetSplit):
 
     def __init__(self, dataset, split='training'):
@@ -188,10 +188,18 @@ class FrancForSegSplit(BaseDatasetSplit):
         return len(self.path_list)
 
     def get_data(self, idx):
-        path = self.path_list[idx]
-        points = np.loadtxt(path[1], dtype=np.float32)
-        label = np.loadtxt(path[2], dtype=np.int64)
-        return {'point': points, 'feat': None, 'label': label}
+        pc_path = self.path_list[idx]
+        log.debug("get_data called {}".format(pc_path))
+
+        pc = pd.read_csv(pc_path, header=None, delim_whitespace=True, dtype=np.float32).values
+        points, labels = pc[:, :3], pc[:, 3].astype(np.int32)
+
+        data = {
+            'point': points,
+            'feat': None,
+            'label': labels
+        }
+        return data
 
     def get_attr(self, idx):
         name = self.path_list[idx][1].split('/')[-1].split('.')[0]

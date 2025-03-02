@@ -1,6 +1,6 @@
 dataset:
   name: Semantic3D
-  dataset_path: # path/to/your/dataset
+  dataset_path:  /home/fzhcis/mylab/mmdetection3d/data/semantickitti
   cache_dir: ./logs/cache_small3d/
   class_weights: [5181602, 5012952, 6830086, 1311528, 10476365, 946982, 334860, 269353]
   ignored_label_inds:
