@@ -9,6 +9,9 @@ import numpy as np
 import torch.distributed as dist
 from torch import multiprocessing
 
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# from ml3d.datasets import pama3d
 import open3d.ml as _ml3d
 
 
