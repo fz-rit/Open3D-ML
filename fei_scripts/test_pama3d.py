@@ -9,7 +9,7 @@ from open3d._ml3d.utils import DATASET
 
 def main():
     # Replace with the absolute path to your dataset root folder.
-    dataset_path = "/home/fzhcis/mylab/data/point_cloud_segmentation/palau_2024"
+    dataset_path = "/home/fzhcis/data/palau_2024_for_rc"
     
     # Create an instance of your custom dataset.
     dataset = PaMa3D(dataset_path)

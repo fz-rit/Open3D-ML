@@ -1,6 +1,6 @@
 dataset:
   name: PaMa3D
-  dataset_path: /home/fzhcis/mylab/data/point_cloud_segmentation/palau_2024 
+  dataset_path: /home/fzhcis/data/palau_2024_for_rc 
   test_result_folder: ./test_results
   use_cache: false
   steps_per_epoch_train: 500

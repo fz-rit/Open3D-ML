@@ -88,9 +88,9 @@ class PaMa3D(BaseDataset):
         self.val_dir = str(Path(cfg.dataset_path) / 'val')
         self.test_dir = str(Path(cfg.dataset_path) / 'test')
 
-        self.train_files = [f for f in glob.glob(self.train_dir + "/csv_temp/*.csv")]
-        self.val_files = [f for f in glob.glob(self.val_dir + "/csv/*.csv")]
-        self.test_files = [f for f in glob.glob(self.test_dir + "/csv/*.csv")]
+        self.train_files = [f for f in glob.glob(self.train_dir + "/*.csv")]
+        self.val_files = [f for f in glob.glob(self.val_dir + "/*.csv")]
+        self.test_files = [f for f in glob.glob(self.test_dir + "/*.csv")]
 
     @staticmethod
     def get_label_to_names():
