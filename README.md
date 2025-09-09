@@ -27,38 +27,26 @@ ML frameworks such as data visualization.
 Open3D-ML is integrated in the Open3D v0.11+ python distribution and is
 compatible with the following versions of ML frameworks.
 
--   PyTorch 2.0.\*
+-   PyTorch 2.2.\*
 -   TensorFlow 2.13.\* (macOS, see below for Linux)
 -   CUDA 10.1, 11.\* (On `GNU/Linux x86_64`, optional)
 
 You can install Open3D with
 
 ```bash
-# make sure you have the latest pip version
+# 1. Create and activate environment
+conda create -n pcd_seg_open3d_env python=3.11
+conda activate pcd_seg_open3d_env
+
+# 2. Upgrade pip and install dependencies
 pip install --upgrade pip
-# install open3d
 pip install open3d
-```
+pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu121
+pip install "numpy<2.0.0"
 
-To install a compatible version of PyTorch or TensorFlow you can use the
-respective requirements files:
-
-```bash
-# To install a compatible version of TensorFlow
-pip install -r requirements-tensorflow.txt
-# To install a compatible version of PyTorch
-pip install -r requirements-torch.txt
-# To install a compatible version of PyTorch with CUDA on Linux
-pip install -r requirements-torch-cuda.txt
-```
-
-To test the installation use
-
-```bash
-# with PyTorch
-$ python -c "import open3d.ml.torch as ml3d"
-# or with TensorFlow
-$ python -c "import open3d.ml.tf as ml3d"
+# 3. Test the installation
+python -c "import open3d.ml.torch as ml3d; print('OK')"
+python -c "import torch; print(torch.cuda.is_available())"
 ```
 
 If you need to use different versions of the ML frameworks or CUDA we recommend
