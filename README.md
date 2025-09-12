@@ -47,6 +47,9 @@ pip install "numpy<2.0.0"
 # 3. Test the installation
 python -c "import open3d.ml.torch as ml3d; print('OK')"
 python -c "import torch; print(torch.cuda.is_available())"
+
+# 4. Install the Python-side code of the repo in editable mode, so that changes to the repo’s Python code take effect immediately without reinstalling.
+pip install -e .
 ```
 
 If you need to use different versions of the ML frameworks or CUDA we recommend

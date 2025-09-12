@@ -5,8 +5,7 @@ import numpy as np
 import os
 import sys
 from os.path import exists, join, dirname
-
-from util import ensure_demo_data
+from pathlib import Path
 
 example_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -76,21 +75,25 @@ def pred_custom_data(pc_names, pcs, pipeline_r, pipeline_k):
 
 
 def get_torch_ckpts():
-    kpconv_url = "https://storage.googleapis.com/open3d-releases/model-zoo/kpconv_semantickitti_202009090354utc.pth"
-    randlanet_url = "https://storage.googleapis.com/open3d-releases/model-zoo/randlanet_semantickitti_202201071330utc.pth"
+    # randlanet_url = "https://storage.googleapis.com/open3d-releases/model-zoo/randlanet_semantickitti_202201071330utc.pth"
 
-    ckpt_path_r = example_dir + "/vis_weights_{}.pth".format('RandLANet')
-    if not exists(ckpt_path_r):
-        cmd = "wget {} -O {}".format(randlanet_url, ckpt_path_r)
+    # ckpt_path_r = example_dir + "/vis_weights_{}.pth".format('RandLANet')
+    # if not exists(ckpt_path_r):
+    #     cmd = "wget {} -O {}".format(randlanet_url, ckpt_path_r)
+    #     os.system(cmd)
+    ckpt_folder = "./logs/"
+    os.makedirs(ckpt_folder, exist_ok=True)
+    ckpt_path = ckpt_folder + "randlanet_semantic3d_202201071330utc.pth"
+    randlanet_url = "https://storage.googleapis.com/open3d-releases/model-zoo/randlanet_semantic3d_202201071330utc.pth"
+    if not os.path.exists(ckpt_path):
+        cmd = "wget {} -O {}".format(randlanet_url, ckpt_path)
         os.system(cmd)
 
-    ckpt_path_k = example_dir + "/vis_weights_{}.pth".format('KPFCNN')
-    if not exists(ckpt_path_k):
-        cmd = "wget {} -O {}".format(kpconv_url, ckpt_path_k)
-        print(cmd)
-        os.system(cmd)
+    # load the parameters.
+    pipeline.load_ckpt(ckpt_path=ckpt_path)
 
-    return ckpt_path_r, ckpt_path_k
+
+    return ckpt_path_r
 
 
 def get_tf_ckpts():
@@ -145,9 +148,10 @@ def main():
     pipeline_k = ml3d.pipelines.SemanticSegmentation(model)
     pipeline_k.load_ckpt(model.cfg.ckpt_path)
 
-    data_path = ensure_demo_data()
-    pc_names = ["000700", "000750"]
-    pcs = get_custom_data(pc_names, data_path + "/SemanticKITTI")
+    # data_path = ensure_demo_data()
+    data_path = Path("/home/fzhcis/mylab/data/semantic3d/open3d_randlanet/vis_dir")
+    pc_names = ["bildstein_station1", "untermaederbrunnen_station3"]
+    pcs = get_custom_data(pc_names, data_path)
     pcs_with_pred = pred_custom_data(pc_names, pcs, pipeline_r, pipeline_k)
 
     v.visualize(pcs_with_pred)
