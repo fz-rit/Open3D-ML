@@ -42,11 +42,16 @@ def default_collate(batch):
     if isinstance(elem, torch.Tensor):
         out = None
         if torch.utils.data.get_worker_info() is not None:
-            # If we're in a background process, concatenate directly into a
-            # shared memory tensor to avoid an extra copy
-            numel = sum([x.numel() for x in batch])
-            storage = elem.storage()._new_shared(numel)
-            out = elem.new(storage)
+            # # If we're in a background process, concatenate directly into a
+            # # shared memory tensor to avoid an extra copy
+            # numel = sum([x.numel() for x in batch])
+            # storage = elem.storage()._new_shared(numel)
+            # out = elem.new(storage).resize_(len(batch), *elem.size())
+
+            # Allocate directly in shared memory; avoids deprecated TypedStorage API
+            size = (len(batch), *elem.size())
+            out = elem.new_empty(size)
+            out.share_memory_()
         return torch.stack(batch, 0, out=out)
     elif elem_type.__module__ == 'numpy' and elem_type.__name__ != 'str_' \
             and elem_type.__name__ != 'string_':

@@ -23,8 +23,7 @@ model = models.RandLANet(**cfg.model)
 # truth labels for the corresponding .txt files. The .txt files that does not have a corresponding .labels, they will
 # be considered as test files.
 
-# cfg.dataset['dataset_path'] = "/shared/rc/mangrove/data/Semantic3D/"
-cfg.dataset['dataset_path'] = "/home/fzhcis/mylab/data/semantic3d/preprocessed/test"
+cfg.dataset['dataset_path'] = "/home/fzhcis/mylab/data/semantic3d/preprocessed/train_val/points_n_labels"
 
 dataset = datasets.Semantic3D(cfg.dataset.pop('dataset_path', None), **cfg.dataset)
 pipeline = pipelines.SemanticSegmentation(model, dataset=dataset, device="gpu", **cfg.pipeline)
