@@ -224,7 +224,7 @@ class Semantic3DSplit(BaseDatasetSplit):
 
         pc = pd.read_csv(pc_path,
                          header=None,
-                         delim_whitespace=True,
+                         sep='\s+',
                          dtype=np.float32).values
 
         points = pc[:, 0:3]
@@ -238,7 +238,7 @@ class Semantic3DSplit(BaseDatasetSplit):
         if (self.split != 'test'):
             labels = pd.read_csv(pc_path.replace(".txt", ".labels"),
                                  header=None,
-                                 delim_whitespace=True,
+                                 sep='\s+',
                                  dtype=np.int32).values
             labels = np.array(labels, dtype=np.int32).reshape((-1,))
         else:
