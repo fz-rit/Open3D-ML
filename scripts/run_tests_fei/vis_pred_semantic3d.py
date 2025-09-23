@@ -58,7 +58,7 @@ def get_custom_data(pc_names, path):
 
         data = {
             'point': points,
-            # 'feat': feat,
+            'feat': feat,
             'intensity': intensity,
             'label': labels
         }
@@ -99,7 +99,7 @@ def get_torch_ckpts():
 
     ckpt_folder = "./logs/"
     os.makedirs(ckpt_folder, exist_ok=True)
-    ckpt_path = ckpt_folder + "randlanet_semantic3d_202201071330utc.pth"
+    ckpt_path = Path("/home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3D_torch/checkpoint/ckpt_00100.pth")
     # randlanet_url = "https://storage.googleapis.com/open3d-releases/model-zoo/randlanet_semantic3d_202201071330utc.pth"
     if not os.path.exists(ckpt_path):
         raise FileNotFoundError(f"Checkpoint file {ckpt_path} not found. Please download it manually.")
@@ -119,24 +119,19 @@ def main():
     v.set_lut("labels", lut)
     v.set_lut("pred", lut)
 
-    # load pretrained weights depending on used ml framework (torch or tf)
-    if ("open3d.ml.torch" in sys.modules):  # torch is used
-        ckpt_path_r = get_torch_ckpts()
-    else:
-        raise NotImplementedError("Only torch is supported now.")
 
     # Get the model configuration from the ml3d repository.
     cfg_path = repo_root / 'ml3d/configs/randlanet_semantic3d.yml'
     model_cfg = utils.Config.load_from_file(str(cfg_path)).model
     model = models.RandLANet(**model_cfg)
-    model.ckpt_path = ckpt_path_r
 
     pipeline_r = pipelines.SemanticSegmentation(model)
-    pipeline_r.load_ckpt(model.cfg.ckpt_path)
+    pipeline_r.load_ckpt(get_torch_ckpts())
 
 
     # data_path = ensure_demo_data()
-    data_path = Path("/home/fzhcis/mylab/data/semantic3d/open3d_randlanet/vis_dir")
+    # data_path = Path("/home/fzhcis/mylab/data/semantic3d/open3d_randlanet/vis_dir")
+    data_path = Path("/home/fzhcis/mylab/data/semantic3d/preprocessed/test")
     # pc_names = ["bildstein_station1", "untermaederbrunnen_station3"]
     pc_names = ["bildstein_station3"]
     pcs = get_custom_data(pc_names, data_path)
@@ -146,8 +141,8 @@ def main():
     pred_labels_r = pcs_with_pred[0]['pred']
 
     # Compare the gt and pred labels in terms of histogram
-    compare_gt_pred_histogram(gt_labels, pred_labels_r, semantic3d_labels)
-    # v.visualize(pcs_with_pred)
+    # compare_gt_pred_histogram(gt_labels, pred_labels_r, semantic3d_labels)
+    v.visualize(pcs_with_pred)
 
 
 if __name__ == "__main__":
