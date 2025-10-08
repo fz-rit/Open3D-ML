@@ -48,7 +48,7 @@ def get_custom_data(pc_names, path):
 
         pc = pd.read_csv(pc_path,
                          header=None,
-                         sep='\s+',
+                         sep=r'\s+',
                          dtype=np.float32).values
 
         points = pc[:, 0:3]
@@ -61,7 +61,7 @@ def get_custom_data(pc_names, path):
 
         labels = pd.read_csv(label_path,
                             header=None,
-                            sep='\s+',
+                            sep=r'\s+',
                             dtype=np.int32).values
         labels = np.array(labels, dtype=np.int32).reshape((-1,))
 
