@@ -4,5 +4,5 @@ ckpt = torch.load(checkpoint_path, map_location="cpu")
 
 # List the top-level keys
 print(ckpt.keys())
-print(ckpt['config'])
+# print(ckpt['config'])
 print(ckpt['state_dict'].keys())
