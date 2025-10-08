@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 # ============================================================================
 # CONFIGURATION - Modify these paths as needed
 # ============================================================================
-CHECKPOINT_PATH = Path("./logs/RandLANet_Semantic3D_torch/checkpoint/ckpt_00100.pth")
+CHECKPOINT_PATH = Path("/home/fzhcis/data/semantic3d_full/selected/checkpoints/ckpt_00100.pth")
 DATA_PATH = Path("/home/fzhcis/data/semantic3d_full/selected/")
 PC_NAMES = ["untermaederbrunnen_station1_xyz_intensity_rgb"]  # List of point cloud names to process
 # ============================================================================
