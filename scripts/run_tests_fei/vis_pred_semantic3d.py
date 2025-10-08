@@ -16,6 +16,8 @@ import ml3d.torch.models as models
 import ml3d.torch.pipelines as pipelines
 import ml3d.vis as vis
 import ml3d.utils as utils
+from ml3d.torch.modules.metrics import SemSegMetric
+import torch
 from compare_gt_pred_labels import compare_gt_pred_histogram
 from os.path import exists, join, dirname
 
@@ -150,9 +152,49 @@ def main():
     gt_labels = pcs_with_pred[0]['labels']
     pred_labels_r = pcs_with_pred[0]['pred']
 
+    # ========================================================================
+    # Quantitative Analysis: Accuracy, IoU/mIoU, and Confusion Matrix
+    # ========================================================================
+    metric = SemSegMetric()
+    num_classes = len(semantic3d_labels)
+    
+    # Convert predictions to one-hot format for metric computation
+    scores = torch.nn.functional.one_hot(
+        torch.tensor(pred_labels_r, dtype=torch.long), 
+        num_classes=num_classes
+    ).float()
+    labels = torch.tensor(gt_labels, dtype=torch.long)
+    
+    # Update metric with predictions and ground truth
+    metric.update(scores, labels)
+    
+    # Get metrics
+    accuracies = metric.acc()
+    ious = metric.iou()
+    confusion_mat = metric.confusion_matrix
+    
+    # Display results
+    print("\n" + "="*70)
+    print("QUANTITATIVE ANALYSIS RESULTS")
+    print("="*70)
+    print(f"Overall Accuracy: {accuracies[-1]*100:.2f}%")
+    print(f"Mean IoU (mIoU):  {ious[-1]*100:.2f}%")
+    print("\nPer-Class Metrics:")
+    print(f"{'Class Name':<30} {'Accuracy':>12} {'IoU':>12}")
+    print("-"*70)
+    for i in sorted(semantic3d_labels.keys()):
+        label_name = semantic3d_labels[i]
+        acc_val = accuracies[i] * 100 if not np.isnan(accuracies[i]) else 0.0
+        iou_val = ious[i] * 100 if not np.isnan(ious[i]) else 0.0
+        print(f"{label_name:<30} {acc_val:>11.2f}% {iou_val:>11.2f}%")
+    print("="*70)
+    print(f"\nConfusion Matrix shape: {confusion_mat.shape}")
+    print(f"Confusion Matrix:\n{confusion_mat}")
+    print("="*70 + "\n")
+
     # Compare the gt and pred labels in terms of histogram
-    compare_gt_pred_histogram(gt_labels, pred_labels_r, semantic3d_labels)
-    # v.visualize(pcs_with_pred)
+    # compare_gt_pred_histogram(gt_labels, pred_labels_r, semantic3d_labels)
+    v.visualize(pcs_with_pred)
 
 
 if __name__ == "__main__":
