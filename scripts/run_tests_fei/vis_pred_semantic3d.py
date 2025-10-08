@@ -138,10 +138,7 @@ def main():
     pipeline_r.load_ckpt(get_torch_ckpts())
 
 
-    # data_path = ensure_demo_data()
-    # data_path = Path("/home/fzhcis/mylab/data/semantic3d/open3d_randlanet/vis_dir")
     data_path = DATA_PATH
-    # pc_names = ["bildstein_station1", "untermaederbrunnen_station3"]
     pc_names = PC_NAMES
     pcs = get_custom_data(pc_names, data_path)
     pcs_with_pred = pred_custom_data(pc_names, pcs, pipeline_r)
