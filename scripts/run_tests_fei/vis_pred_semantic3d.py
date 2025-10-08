@@ -24,6 +24,15 @@ example_dir = os.path.dirname(os.path.realpath(__file__))
 log = logging.getLogger(__name__)
 
 
+# ============================================================================
+# CONFIGURATION - Modify these paths as needed
+# ============================================================================
+CHECKPOINT_PATH = Path("/home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3D_torch/checkpoint/ckpt_00100.pth")
+DATA_PATH = Path("/home/fzhcis/mylab/data/semantic3d/preprocessed/test")
+PC_NAMES = ["bildstein_station3"]  # List of point cloud names to process
+# ============================================================================
+
+
 def get_custom_data(pc_names, path):
 
     pc_data = []
@@ -99,7 +108,7 @@ def get_torch_ckpts():
 
     ckpt_folder = "./logs/"
     os.makedirs(ckpt_folder, exist_ok=True)
-    ckpt_path = Path("/home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3D_torch/checkpoint/ckpt_00100.pth")
+    ckpt_path = CHECKPOINT_PATH
     # randlanet_url = "https://storage.googleapis.com/open3d-releases/model-zoo/randlanet_semantic3d_202201071330utc.pth"
     if not os.path.exists(ckpt_path):
         raise FileNotFoundError(f"Checkpoint file {ckpt_path} not found. Please download it manually.")
@@ -131,9 +140,9 @@ def main():
 
     # data_path = ensure_demo_data()
     # data_path = Path("/home/fzhcis/mylab/data/semantic3d/open3d_randlanet/vis_dir")
-    data_path = Path("/home/fzhcis/mylab/data/semantic3d/preprocessed/test")
+    data_path = DATA_PATH
     # pc_names = ["bildstein_station1", "untermaederbrunnen_station3"]
-    pc_names = ["bildstein_station3"]
+    pc_names = PC_NAMES
     pcs = get_custom_data(pc_names, data_path)
     pcs_with_pred = pred_custom_data(pc_names, pcs, pipeline_r)
 
