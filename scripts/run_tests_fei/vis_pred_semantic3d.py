@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 parent_dir = Path("/home/fzhcis/data/semantic3d_full/selected/")
 CHECKPOINT_PATH = parent_dir / "checkpoints/ckpt_00100.pth"
 DATA_PATH = parent_dir
-PC_NAMES = ["untermaederbrunnen_station1_xyz_intensity_rgb"]  # List of point cloud names to process
+PC_NAMES = ["untermaederbrunnen_station3_xyz_intensity_rgb"]  # List of point cloud names to process
 # ============================================================================
 
 if not parent_dir.exists():
