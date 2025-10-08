@@ -27,9 +27,9 @@ log = logging.getLogger(__name__)
 # ============================================================================
 # CONFIGURATION - Modify these paths as needed
 # ============================================================================
-CHECKPOINT_PATH = Path("/home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3D_torch/checkpoint/ckpt_00100.pth")
-DATA_PATH = Path("/home/fzhcis/mylab/data/semantic3d/preprocessed/test")
-PC_NAMES = ["bildstein_station3"]  # List of point cloud names to process
+CHECKPOINT_PATH = Path("./logs/RandLANet_Semantic3D_torch/checkpoint/ckpt_00100.pth")
+DATA_PATH = Path("/home/fzhcis/data/semantic3d_full/selected/")
+PC_NAMES = ["untermaederbrunnen_station1_xyz_intensity_rgb"]  # List of point cloud names to process
 # ============================================================================
 
 
@@ -106,14 +106,14 @@ def pred_custom_data(pc_names, pcs, pipeline_r):
 
 def get_torch_ckpts():
 
-    ckpt_folder = "./logs/"
-    os.makedirs(ckpt_folder, exist_ok=True)
+    # ckpt_folder = "./logs/"
+    # os.makedirs(ckpt_folder, exist_ok=True)
     ckpt_path = CHECKPOINT_PATH
-    # randlanet_url = "https://storage.googleapis.com/open3d-releases/model-zoo/randlanet_semantic3d_202201071330utc.pth"
+    randlanet_url = "https://storage.googleapis.com/open3d-releases/model-zoo/randlanet_semantic3d_202201071330utc.pth"
     if not os.path.exists(ckpt_path):
-        raise FileNotFoundError(f"Checkpoint file {ckpt_path} not found. Please download it manually.")
-        # cmd = "wget {} -O {}".format(randlanet_url, ckpt_path)
-        # os.system(cmd)
+        # raise FileNotFoundError(f"Checkpoint file {ckpt_path} not found. Please download it manually.")
+        cmd = "wget {} -O {}".format(randlanet_url, ckpt_path)
+        os.system(cmd)
 
     return ckpt_path
 
@@ -146,8 +146,8 @@ def main():
     pcs = get_custom_data(pc_names, data_path)
     pcs_with_pred = pred_custom_data(pc_names, pcs, pipeline_r)
 
-    gt_labels = pcs_with_pred[0]['labels']
-    pred_labels_r = pcs_with_pred[0]['pred']
+    # gt_labels = pcs_with_pred[0]['labels']
+    # pred_labels_r = pcs_with_pred[0]['pred']
 
     # Compare the gt and pred labels in terms of histogram
     # compare_gt_pred_histogram(gt_labels, pred_labels_r, semantic3d_labels)
