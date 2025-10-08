@@ -27,8 +27,8 @@ log = logging.getLogger(__name__)
 # ============================================================================
 # CONFIGURATION - Modify these paths as needed
 # ============================================================================
-parent_dir = Path(r"D:\mylab\data\Semantic3D-dataset")
-# parent_dir = Path("/home/fzhcis/data/semantic3d_full/selected/")
+# parent_dir = Path(r"D:\mylab\data\Semantic3D-dataset")
+parent_dir = Path("/home/fzhcis/data/semantic3d_full/selected/")
 CHECKPOINT_PATH = parent_dir / "checkpoints/ckpt_00100.pth"
 DATA_PATH = parent_dir
 PC_NAMES = ["untermaederbrunnen_station1_xyz_intensity_rgb"]  # List of point cloud names to process
@@ -147,12 +147,12 @@ def main():
     pcs = get_custom_data(pc_names, data_path)
     pcs_with_pred = pred_custom_data(pc_names, pcs, pipeline_r)
 
-    # gt_labels = pcs_with_pred[0]['labels']
-    # pred_labels_r = pcs_with_pred[0]['pred']
+    gt_labels = pcs_with_pred[0]['labels']
+    pred_labels_r = pcs_with_pred[0]['pred']
 
     # Compare the gt and pred labels in terms of histogram
-    # compare_gt_pred_histogram(gt_labels, pred_labels_r, semantic3d_labels)
-    v.visualize(pcs_with_pred)
+    compare_gt_pred_histogram(gt_labels, pred_labels_r, semantic3d_labels)
+    # v.visualize(pcs_with_pred)
 
 
 if __name__ == "__main__":
