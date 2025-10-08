@@ -27,11 +27,15 @@ log = logging.getLogger(__name__)
 # ============================================================================
 # CONFIGURATION - Modify these paths as needed
 # ============================================================================
-CHECKPOINT_PATH = Path("/home/fzhcis/data/semantic3d_full/selected/checkpoints/ckpt_00100.pth")
-DATA_PATH = Path("/home/fzhcis/data/semantic3d_full/selected/")
+parent_dir = Path(r"D:\mylab\data\Semantic3D-dataset")
+# parent_dir = Path("/home/fzhcis/data/semantic3d_full/selected/")
+CHECKPOINT_PATH = parent_dir / "checkpoints/ckpt_00100.pth"
+DATA_PATH = parent_dir
 PC_NAMES = ["untermaederbrunnen_station1_xyz_intensity_rgb"]  # List of point cloud names to process
 # ============================================================================
 
+if not parent_dir.exists():
+    raise ValueError("Parent directory does not exist.") 
 
 def get_custom_data(pc_names, path):
 
