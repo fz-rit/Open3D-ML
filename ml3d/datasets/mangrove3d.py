@@ -55,6 +55,10 @@ class Mangrove3D(BaseDataset):
         # Optional automatic validation split when val_files not provided
         val_split_ratio=None,
         val_split_seed=42,
+        # Optional mapping between CSV stem and label stem. For example,
+        #   <name>_color.csv -> <name>_refined.label
+        label_stem_suffix_from='_color',
+        label_stem_suffix_to='_refined',
         **kwargs,
     ):
         """Initialize dataset configuration.
@@ -95,6 +99,8 @@ class Mangrove3D(BaseDataset):
         self.save_label_offset = save_label_offset
         self.val_split_ratio = val_split_ratio
         self.val_split_seed = val_split_seed
+        self.label_stem_suffix_from = label_stem_suffix_from
+        self.label_stem_suffix_to = label_stem_suffix_to
 
         # Label mapping
         if label_to_names is not None:
@@ -258,7 +264,13 @@ class Mangrove3DSplit(BaseDatasetSplit):
             # Fallback to parent of pcd folder
             split_root = csv_path.parents[1]
         label_dir = split_root / self.dataset.label_dir_name
-        label_path = label_dir / (csv_path.stem + self.dataset.label_ext)
+        # Derive label stem with optional suffix mapping
+        stem = csv_path.stem
+        from_suf = getattr(self.dataset, 'label_stem_suffix_from', None)
+        to_suf = getattr(self.dataset, 'label_stem_suffix_to', None)
+        if from_suf and to_suf and stem.endswith(from_suf):
+            stem = stem[: -len(from_suf)] + to_suf
+        label_path = label_dir / (stem + self.dataset.label_ext)
         return label_path
 
     def get_data(self, idx):
