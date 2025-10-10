@@ -38,12 +38,11 @@ model:
   ignored_label_inds: []
   sub_sampling_ratio: [4, 4, 4, 4, 2]
   # Input channels: if using features from rangemeter..PCA3, count the columns
-  # Columns inclusive: rangemeter..PCA3 -> adjust as needed; if unsure, you can set in_channels dynamically elsewhere
-  # For example, rangemeter..PCA3 includes: rangemeter, Intensity, elevation, curvature, anisotropy, planarity,
+  # Columns include: rangemeter, Intensity, elevation, curvature, anisotropy, planarity,
   # nx, ny, nz, intensity_adjusted, z_adjusted, range_adjusted, Pseudo-Rn, Pseudo-Gn, Pseudo-Bn, PCA1, PCA2, PCA3
   # Set an estimate; revise after confirming exact column count
-  in_channels: 18
-  dim_features: 8
+  in_channels: 6
+  dim_features: 3
   dim_output: [16, 64, 128, 256, 512]
   grid_size: 0.03
   augment:

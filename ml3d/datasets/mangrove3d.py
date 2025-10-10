@@ -319,7 +319,7 @@ class Mangrove3DSplit(BaseDatasetSplit):
             label_path = self._get_label_path(csv_path)
             if not label_path.exists():
                 raise FileNotFoundError(f"Label file not found for {csv_path}: {label_path}")
-            labels = pd.read_csv(label_path, header=None, sep='\s+', dtype=np.int32).values
+            labels = pd.read_csv(label_path, header=None, sep=r'\s+', dtype=np.int32).values
             labels = labels.squeeze().astype(np.int32)
             if labels.ndim != 1 or labels.shape[0] != points.shape[0]:
                 raise ValueError(
