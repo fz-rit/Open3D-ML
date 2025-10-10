@@ -2,9 +2,7 @@ dataset:
   name: Mangrove3D
   dataset_path: /home/fzhcis/data/mangrove3d_pcd/
   cache_dir: ./logs/cache_mangrove3d/
-  # Provide class_weights if you have them; leave empty or remove to disable weighting
-  # class_weights can be provided as numbers; underscores are not valid in YAML numbers
-  # class_weights: [12348000, 10424000, 61446000, 1790000, 373000]
+  class_weights: [12348000, 10424000, 61446000, 1790000, 373000]
   ignored_label_inds: []
   num_points: 65536
   test_result_folder: ./test
