@@ -1,6 +1,6 @@
 dataset:
   name: Mangrove3D
-  dataset_path: /path/to/mangrove3d_pcd
+  dataset_path: /home/fzhcis/data/mangrove3d_pcd/
   cache_dir: ./logs/cache_mangrove3d/
   # Provide class_weights if you have them; leave empty or remove to disable weighting
   # class_weights: [ ... ]
