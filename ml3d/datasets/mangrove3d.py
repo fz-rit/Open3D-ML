@@ -3,6 +3,7 @@ import pandas as pd
 from pathlib import Path
 from os.path import join, exists
 import glob
+import json
 import logging
 
 from .base_dataset import BaseDataset, BaseDatasetSplit
@@ -19,10 +20,10 @@ class Mangrove3D(BaseDataset):
     dataset_path/
       ├── train_val/
       │    ├── pcd/*.csv
-      │    └── label/*.labels  # one label per line, aligned with points
+      │    └── label/*.label  # one label per line, aligned with points
       └── test/
            ├── pcd/*.csv
-           └── label/          # optional, not required for inference
+           └── label/ 
 
     CSV columns: ['X', 'Y', 'Z', 'zenith', 'azimuth', 'rangemeter', 'Intensity',
     'elevation', 'curvature', 'anisotropy', 'planarity', 'nx', 'ny', 'nz',
@@ -48,9 +49,12 @@ class Mangrove3D(BaseDataset):
         feature_last_col='PCA3',
         label_dir_name='label',
         pcd_dir_name='pcd',
-    label_ext='.label',
+        label_ext='.label',
         save_label_offset=0,
         label_to_names=None,
+        # Optional automatic validation split when val_files not provided
+        val_split_ratio=None,
+        val_split_seed=42,
         **kwargs,
     ):
         """Initialize dataset configuration.
@@ -89,6 +93,8 @@ class Mangrove3D(BaseDataset):
         self.label_dir_name = label_dir_name
         self.label_ext = label_ext
         self.save_label_offset = save_label_offset
+        self.val_split_ratio = val_split_ratio
+        self.val_split_seed = val_split_seed
 
         # Label mapping
         if label_to_names is not None:
@@ -112,15 +118,70 @@ class Mangrove3D(BaseDataset):
             glob.glob(str(root / 'test' / self.pcd_dir_name / '*.csv'))
         )
 
-        # No implicit validation set unless specified via val_files (list of base names or substrings)
+        # Validation split
         self.val_files = []
         if cfg.val_files:
+            # Explicit file-based selection via substrings
             val_markers = cfg.val_files
             for f in self.trainval_pcd_files:
                 if any(marker in f for marker in val_markers):
                     self.val_files.append(f)
+        elif self.val_split_ratio:
+            # Deterministic random split with persistence in cache_dir
+            cache_dir = Path(getattr(self.cfg, 'cache_dir', './logs/cache'))
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            manifest_path = cache_dir / f"{self.name}_split.json"
 
-        self.train_files = np.array([f for f in self.trainval_pcd_files if f not in self.val_files])
+            # Build basenames list for stability across absolute path changes
+            basenames = [Path(p).name for p in self.trainval_pcd_files]
+            basename_to_full = {Path(p).name: p for p in self.trainval_pcd_files}
+
+            if manifest_path.exists():
+                try:
+                    with open(manifest_path, 'r') as f:
+                        split_info = json.load(f)
+                    saved_train = split_info.get('train', [])
+                    saved_val = split_info.get('val', [])
+                    saved_all = set(saved_train) | set(saved_val)
+                    if set(basenames) == saved_all:
+                        # Reconstruct paths
+                        self.val_files = [basename_to_full[b] for b in saved_val]
+                        train_files_from_manifest = [basename_to_full[b] for b in saved_train]
+                        self.train_files = np.array(train_files_from_manifest)
+                    else:
+                        log.warning("Split manifest does not match current file list. Recomputing split.")
+                        raise ValueError('mismatch')
+                except Exception:
+                    # Recompute
+                    rng = np.random.default_rng(self.val_split_seed)
+                    indices = np.arange(len(basenames))
+                    rng.shuffle(indices)
+                    n_val = max(1, int(len(indices) * float(self.val_split_ratio)))
+                    val_idx = set(indices[:n_val].tolist())
+                    train_b = [basenames[i] for i in range(len(basenames)) if i not in val_idx]
+                    val_b = [basenames[i] for i in sorted(val_idx)]
+                    split_info = {'train': train_b, 'val': val_b, 'seed': self.val_split_seed, 'ratio': float(self.val_split_ratio)}
+                    with open(manifest_path, 'w') as f:
+                        json.dump(split_info, f, indent=2)
+                    self.val_files = [basename_to_full[b] for b in val_b]
+                    self.train_files = np.array([basename_to_full[b] for b in train_b])
+            else:
+                # Create new manifest
+                rng = np.random.default_rng(self.val_split_seed)
+                indices = np.arange(len(basenames))
+                rng.shuffle(indices)
+                n_val = max(1, int(len(indices) * float(self.val_split_ratio)))
+                val_idx = set(indices[:n_val].tolist())
+                train_b = [basenames[i] for i in range(len(basenames)) if i not in val_idx]
+                val_b = [basenames[i] for i in sorted(val_idx)]
+                split_info = {'train': train_b, 'val': val_b, 'seed': self.val_split_seed, 'ratio': float(self.val_split_ratio)}
+                with open(manifest_path, 'w') as f:
+                    json.dump(split_info, f, indent=2)
+                self.val_files = [basename_to_full[b] for b in val_b]
+                self.train_files = np.array([basename_to_full[b] for b in train_b])
+
+        if not hasattr(self, 'train_files') or self.train_files is None or len(self.train_files) == 0:
+            self.train_files = np.array([f for f in self.trainval_pcd_files if f not in self.val_files])
         self.test_files = np.array(self.test_pcd_files)
 
         log.info(

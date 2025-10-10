@@ -3,13 +3,15 @@ dataset:
   dataset_path: /home/fzhcis/data/mangrove3d_pcd/
   cache_dir: ./logs/cache_mangrove3d/
   # Provide class_weights if you have them; leave empty or remove to disable weighting
-  # class_weights: [ ... ]
+  # class_weights can be provided as numbers; underscores are not valid in YAML numbers
+  # class_weights: [12348000, 10424000, 61446000, 1790000, 373000]
   ignored_label_inds: []
   num_points: 65536
   test_result_folder: ./test
   use_cache: true
-  # Optionally mark some files as validation (match substrings of CSV basenames)
-  val_files: []
+  # Deterministic random split; 0.1 means 10% validation
+  val_split_ratio: 0.1
+  val_split_seed: 42
   # Mangrove3D-specific options
   use_features: true
   feature_first_col: rangemeter
