@@ -45,6 +45,7 @@ pipeline:
   optimizer:
     lr: 0.001
   batch_size: 2
+  num_workers: 8
   main_log_dir: ./logs
   max_epoch: 100
   save_ckpt_freq: 5

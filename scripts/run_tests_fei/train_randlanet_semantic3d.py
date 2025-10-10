@@ -14,20 +14,21 @@ import ml3d.torch.models as models
 import ml3d.torch.pipelines as pipelines
 log = logging.getLogger(__name__)
 
-cfg_file = "/home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_semantic3d_test.yml"
-cfg = utils.Config.load_from_file(cfg_file)
-# The dataset path should contain .txt files and .labels files, where the .labels files are the ground
-# truth labels for the corresponding .txt files. The .txt files that does not have a corresponding .labels, they will
-# be considered as test files.
 
-# scfg.dataset['dataset_path'] = "/home/fzhcis/mylab/data/semantic3d/preprocessed/train_val/points_n_labels"
+def main():
+	cfg_file = "/home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_semantic3d_test.yml"
+	cfg = utils.Config.load_from_file(cfg_file)
+	# The dataset path should contain .txt files and .labels files, where the .labels files are the ground
+	# truth labels for the corresponding .txt files. The .txt files that does not have a corresponding .labels, they will
+	# be considered as test files.
 
-model = models.RandLANet(**cfg.model)
+	# cfg.dataset['dataset_path'] = "/home/fzhcis/mylab/data/semantic3d/preprocessed/train_val/points_n_labels"
 
+	model = models.RandLANet(**cfg.model)
 
-dataset = datasets.Semantic3D(cfg.dataset.pop('dataset_path', None), **cfg.dataset)
-pipeline = pipelines.SemanticSegmentation(model, dataset=dataset, device="gpu", **cfg.pipeline)
-pipeline.run_train()
+	dataset = datasets.Semantic3D(cfg.dataset.pop('dataset_path', None), **cfg.dataset)
+	pipeline = pipelines.SemanticSegmentation(model, dataset=dataset, device="gpu", **cfg.pipeline)
+	pipeline.run_train()
 
 
 # # load the parameters.
@@ -43,3 +44,7 @@ pipeline.run_train()
 
 # # evaluate performance on the test set; this will write logs to './logs'.
 # pipeline.run_test()
+
+
+if __name__ == "__main__":
+	main()
