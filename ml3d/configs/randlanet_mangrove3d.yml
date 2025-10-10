@@ -1,0 +1,82 @@
+dataset:
+  name: Mangrove3D
+  dataset_path: /path/to/mangrove3d_pcd
+  cache_dir: ./logs/cache_mangrove3d/
+  # Provide class_weights if you have them; leave empty or remove to disable weighting
+  # class_weights: [ ... ]
+  ignored_label_inds: []
+  num_points: 65536
+  test_result_folder: ./test
+  use_cache: true
+  # Optionally mark some files as validation (match substrings of CSV basenames)
+  val_files: []
+  # Mangrove3D-specific options
+  use_features: true
+  feature_first_col: rangemeter
+  feature_last_col: PCA3
+  pcd_dir_name: pcd
+  label_dir_name: label
+  # Label files have .label extension
+  save_label_offset: 1  # labels are 1-based in files; add +1 to saved predictions
+  # Optional class name mapping (adjust names as needed)
+  label_to_names:
+    1: Ground_and_water
+    2: Stem
+    3: Canopy
+    4: Roots
+    5: Object
+
+model:
+  name: RandLANet
+  batcher: DefaultBatcher
+  ckpt_path:  # path/to/your/checkpoint
+  num_neighbors: 16
+  num_layers: 5
+  num_points: 65536
+  # Set num_classes to the actual number of classes
+  num_classes: 5
+  ignored_label_inds: []
+  sub_sampling_ratio: [4, 4, 4, 4, 2]
+  # Input channels: if using features from rangemeter..PCA3, count the columns
+  # Columns inclusive: rangemeter..PCA3 -> adjust as needed; if unsure, you can set in_channels dynamically elsewhere
+  # For example, rangemeter..PCA3 includes: rangemeter, Intensity, elevation, curvature, anisotropy, planarity,
+  # nx, ny, nz, intensity_adjusted, z_adjusted, range_adjusted, Pseudo-Rn, Pseudo-Gn, Pseudo-Bn, PCA1, PCA2, PCA3
+  # Set an estimate; revise after confirming exact column count
+  in_channels: 18
+  dim_features: 8
+  dim_output: [16, 64, 128, 256, 512]
+  grid_size: 0.03
+  augment:
+    recenter:
+      dim: [0, 1]
+    normalize:
+      feat:
+        method: linear
+        bias: 0
+        scale: 255
+    rotate:
+      method: vertical
+    scale:
+      min_s: 0.9
+      max_s: 1.1
+    noise:
+      noise_std: 0.001
+
+pipeline:
+  name: SemanticSegmentation
+  optimizer:
+    lr: 0.001
+  batch_size: 2
+  num_workers: 8
+  main_log_dir: ./logs
+  max_epoch: 3
+  save_ckpt_freq: 5
+  scheduler_gamma: 0.9886
+  test_batch_size: 1
+  train_sum_dir: train_log
+  val_batch_size: 2
+  summary:
+    record_for: []
+    max_pts:
+    use_reference: false
+    max_outputs: 1
