@@ -68,7 +68,7 @@ pipeline:
   name: SemanticSegmentation
   optimizer:
     lr: 0.001
-  batch_size: 2
+  batch_size: 4
   num_workers: 0  # Must be 0: sampler contains unpicklable local functions
   main_log_dir: ./logs
   max_epoch: 100

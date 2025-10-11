@@ -103,7 +103,7 @@ dataset:
   num_classes: 5         # Set in model config
   
 pipeline:
-  batch_size: 2          # Adjust based on GPU memory
+  batch_size: 4          # Adjust based on GPU memory
   num_workers: 0         # Must be 0 due to sampler limitations
   max_epoch: 100         # Adjust as needed
 ```
