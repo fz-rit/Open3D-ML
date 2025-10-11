@@ -236,8 +236,9 @@ class Mangrove3D(BaseDataset):
         path = cfg.test_result_folder
         make_dir(path)
 
-        # Save predictions (already in 0-based format, no conversion needed)
-        pred = results['predict_labels']
+        # Convert predictions back to 1-based format for output files
+        # (internally we use 0-based, but files should use 1-based)
+        pred = results['predict_labels'] + 1
         store_path = join(path, self.name, name + self.label_ext)
         make_dir(Path(store_path).parent)
         np.savetxt(store_path, pred.astype(np.int32), fmt='%d')

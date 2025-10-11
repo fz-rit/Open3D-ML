@@ -16,9 +16,11 @@ dataset:
   feature_last_col: nz
   pcd_dir_name: pcd
   label_dir_name: label
-  # Label files contain 1-based labels (1,2,3,4,5) but are automatically 
-  # converted to 0-based (0,1,2,3,4) when loaded
-  # Class names are mapped to 0-based indices
+  # Label handling:
+  # - Files contain 1-based labels (1,2,3,4,5)
+  # - Automatically converted to 0-based (0,1,2,3,4) internally for training
+  # - Converted back to 1-based (1,2,3,4,5) when saving predictions
+  # Class names are mapped to 0-based indices for internal use
   label_to_names:
     0: Ground_and_water
     1: Stem
@@ -66,13 +68,13 @@ pipeline:
   name: SemanticSegmentation
   optimizer:
     lr: 0.001
-  batch_size: 1
-  num_workers: 0  # Set to 0 to avoid multiprocessing segfaults during debugging
+  batch_size: 2
+  num_workers: 1  # Use 1 worker to avoid multiprocessing issues
   main_log_dir: ./logs
-  max_epoch: 3
+  max_epoch: 1
   save_ckpt_freq: 5
   scheduler_gamma: 0.9886
-  test_batch_size: 1
+  test_batch_size: 2
   train_sum_dir: train_log
   val_batch_size: 2
   summary:
