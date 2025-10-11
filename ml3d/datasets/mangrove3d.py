@@ -50,8 +50,6 @@ class Mangrove3D(BaseDataset):
         label_dir_name='label',
         pcd_dir_name='pcd',
         label_ext='.label',
-        save_label_offset=0,
-    train_label_offset=0,
         label_to_names=None,
         # Optional automatic validation split when val_files not provided
         val_split_ratio=None,
@@ -72,8 +70,9 @@ class Mangrove3D(BaseDataset):
             label_dir_name: Subfolder name holding label files under each split folder.
             pcd_dir_name: Subfolder name holding CSV point clouds under each split folder.
             label_ext: Extension for label files.
-            save_label_offset: Offset added to predictions when saving (default 0; set to 1 if your ground truth labels are 1-based).
-            label_to_names: Optional dict mapping label ids to class names. If None, a generic mapping is used {0:'unlabeled', 1:'class1', ...} determined at runtime when possible.
+            label_to_names: Dict mapping 0-based label ids to class names.
+                           Note: Label files contain 1-based labels (1,2,3,...) which are 
+                           automatically converted to 0-based (0,1,2,...) when loaded.
         """
         super().__init__(
             dataset_path=dataset_path,
@@ -97,26 +96,23 @@ class Mangrove3D(BaseDataset):
         self.pcd_dir_name = pcd_dir_name
         self.label_dir_name = label_dir_name
         self.label_ext = label_ext
-        self.save_label_offset = save_label_offset
-        self.train_label_offset = train_label_offset
         self.val_split_ratio = val_split_ratio
         self.val_split_seed = val_split_seed
         self.label_stem_suffix_from = label_stem_suffix_from
         self.label_stem_suffix_to = label_stem_suffix_to
 
-        # Label mapping
+        # Label mapping (0-based)
         if label_to_names is not None:
             self.label_to_names = label_to_names
         elif hasattr(cfg, 'label_to_names') and cfg.label_to_names:
             self.label_to_names = cfg.label_to_names
         else:
-            # Fallback generic mapping; refined later in split if we can detect max label
+            # Fallback generic mapping
             self.label_to_names = {0: 'unlabeled'}
+        
         self.label_values = np.sort([k for k in self.label_to_names.keys()])
         self.label_to_idx = {l: i for i, l in enumerate(self.label_values)}
         self.ignored_labels = np.array(ignored_label_inds, dtype=np.int64)
-        
-        # Set num_classes for consistency with other datasets
         self.num_classes = len(self.label_to_names)
 
         root = Path(self.cfg.dataset_path)
@@ -240,8 +236,8 @@ class Mangrove3D(BaseDataset):
         path = cfg.test_result_folder
         make_dir(path)
 
-        # Convert predictions from 0-based back to 1-based for file saving
-        pred = results['predict_labels'] + 1
+        # Save predictions (already in 0-based format, no conversion needed)
+        pred = results['predict_labels']
         store_path = join(path, self.name, name + self.label_ext)
         make_dir(Path(store_path).parent)
         np.savetxt(store_path, pred.astype(np.int32), fmt='%d')
@@ -257,6 +253,21 @@ class Mangrove3DSplit(BaseDatasetSplit):
 
     def __len__(self):
         return len(self.path_list)
+    
+    def _read_labels(self, label_path: Path) -> np.ndarray:
+        """Helper function to read labels from file and convert to 0-based indexing.
+        
+        Args:
+            label_path: Path to the label file
+            
+        Returns:
+            labels: numpy array of 0-based labels
+        """
+        labels = pd.read_csv(label_path, header=None, sep=r'\s+', dtype=np.int32).values
+        labels = labels.squeeze().astype(np.int32)
+        # Convert from 1-based (file format) to 0-based (internal format)
+        labels = labels - 1
+        return labels
 
     def _get_label_path(self, csv_path: Path) -> Path:
         # Map CSV file path to corresponding label path
@@ -325,19 +336,17 @@ class Mangrove3DSplit(BaseDatasetSplit):
             label_path = self._get_label_path(csv_path)
             if not label_path.exists():
                 raise FileNotFoundError(f"Label file not found for {csv_path}: {label_path}")
-            labels = pd.read_csv(label_path, header=None, sep=r'\s+', dtype=np.int32).values
-            labels = labels.squeeze().astype(np.int32)
             
-            # Convert from 1-based file labels to 0-based training labels
-            labels = labels - 1
+            # Read labels using helper function (converts 1-based to 0-based)
+            labels = self._read_labels(label_path)
             
             # Validate labels are in valid range [0, num_classes-1]
             if (labels < 0).any():
                 unique_labels = np.unique(labels)
                 raise ValueError(
-                    f"Negative labels found after subtracting 1 for {csv_path}. "
-                    f"Unique labels after conversion: {unique_labels}. "
-                    f"File labels should be >= 1."
+                    f"Negative labels found after conversion for {csv_path}. "
+                    f"Unique labels: {unique_labels}. "
+                    f"File labels must be >= 1."
                 )
             
             max_label = labels.max()
@@ -345,9 +354,8 @@ class Mangrove3DSplit(BaseDatasetSplit):
                 unique_labels = np.unique(labels)
                 raise ValueError(
                     f"Label value {max_label} exceeds num_classes={self.dataset.num_classes} for {csv_path}. "
-                    f"Unique labels after conversion (0-based): {unique_labels}. "
-                    f"Expected range: [0, {self.dataset.num_classes-1}]. "
-                    f"File should contain labels in range [1, {self.dataset.num_classes}]."
+                    f"Unique labels (0-based): {unique_labels}. "
+                    f"Expected range: [0, {self.dataset.num_classes-1}]."
                 )
             
             if labels.ndim != 1 or labels.shape[0] != points.shape[0]:
