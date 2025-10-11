@@ -1,9 +1,5 @@
 import numpy as np
 import warnings
-import logging
-import torch
-
-log = logging.getLogger(__name__)
 
 
 class SemSegMetric(object):
@@ -19,14 +15,6 @@ class SemSegMetric(object):
         self.num_classes = None
 
     def update(self, scores, labels):
-        # DEBUG: Log input statistics
-        log.debug(f"[DEBUG SemSegMetric.update] scores shape: {scores.shape}")
-        log.debug(f"[DEBUG SemSegMetric.update] labels shape: {labels.shape}")
-        log.debug(f"[DEBUG SemSegMetric.update] labels device: {labels.device}")
-        log.debug(f"[DEBUG SemSegMetric.update] labels min/max: [{labels.min().item()}, {labels.max().item()}]")
-        if torch.is_tensor(labels):
-            log.debug(f"[DEBUG SemSegMetric.update] unique labels: {torch.unique(labels).cpu().numpy()}")
-        
         conf = self.get_confusion_matrix(scores, labels)
         if self.confusion_matrix is None:
             self.confusion_matrix = conf.copy()
@@ -117,22 +105,10 @@ class SemSegMetric(object):
             Confusion matrix for current batch.
         """
         C = scores.size(-1)
-        
-        # DEBUG: Log before CPU transfer
-        log.debug(f"[DEBUG get_confusion_matrix] C (num_classes): {C}")
-        log.debug(f"[DEBUG get_confusion_matrix] scores shape: {scores.shape}")
-        log.debug(f"[DEBUG get_confusion_matrix] labels shape: {labels.shape}")
-        
         y_pred = scores.detach().cpu().numpy().reshape(-1, C)  # (N, C)
         y_pred = np.argmax(y_pred, axis=1)  # (N,)
 
         y_true = labels.detach().cpu().numpy().reshape(-1,)
-        
-        # DEBUG: Log numpy arrays
-        log.debug(f"[DEBUG get_confusion_matrix] y_true min/max: [{y_true.min()}, {y_true.max()}]")
-        log.debug(f"[DEBUG get_confusion_matrix] y_true unique: {np.unique(y_true)}")
-        log.debug(f"[DEBUG get_confusion_matrix] y_pred min/max: [{y_pred.min()}, {y_pred.max()}]")
-        log.debug(f"[DEBUG get_confusion_matrix] y_pred unique: {np.unique(y_pred)}")
 
         y = np.bincount(C * y_true + y_pred, minlength=C * C)
 

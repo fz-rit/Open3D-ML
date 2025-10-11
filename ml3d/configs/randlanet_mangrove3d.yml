@@ -6,7 +6,7 @@ dataset:
   ignored_label_inds: []
   num_points: 65536
   test_result_folder: ./test
-  use_cache: false  # Disabled to force reload with new 0-based labels
+  use_cache: true 
   # Deterministic random split; 0.1 means 10% validation
   val_split_ratio: 0.1
   val_split_seed: 42
@@ -69,7 +69,7 @@ pipeline:
   optimizer:
     lr: 0.001
   batch_size: 2
-  num_workers: 1  # Use 1 worker with spawn method (fixed in training script)
+  num_workers: 0  # Must be 0: sampler contains unpicklable local functions
   main_log_dir: ./logs
   max_epoch: 1
   save_ckpt_freq: 5

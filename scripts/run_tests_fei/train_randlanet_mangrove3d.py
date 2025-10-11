@@ -4,14 +4,6 @@ import os
 from pathlib import Path
 import pandas as pd
 import numpy as np
-import torch.multiprocessing as mp
-
-# Fix for Python 3.12 multiprocessing issues with num_workers > 0
-# Set the start method to 'spawn' before importing other modules
-try:
-    mp.set_start_method('spawn', force=True)
-except RuntimeError:
-    pass  # Already set
 
 # Add the Open3D-ML repository root to Python path
 repo_root = Path(__file__).parent.parent.parent  # Go up 3 levels to reach Open3D-ML root
