@@ -18,6 +18,8 @@ dataset:
   label_dir_name: label
   # Label files have .label extension
   save_label_offset: 1  # labels are 1-based in files; add +1 to saved predictions
+  # Shift training labels from 1..K to 0..K-1
+  train_label_offset: -1
   # Optional class name mapping (adjust names as needed)
   label_to_names:
     1: Ground_and_water
@@ -41,6 +43,7 @@ model:
   # Columns include: rangemeter, Intensity, elevation, curvature, anisotropy, planarity,
   # nx, ny, nz, intensity_adjusted, z_adjusted, range_adjusted, Pseudo-Rn, Pseudo-Gn, Pseudo-Bn, PCA1, PCA2, PCA3
   # Set an estimate; revise after confirming exact column count
+  # Input channels must equal 3 (XYZ) + number of selected feature columns
   in_channels: 6
   dim_features: 8
   dim_output: [16, 64, 128, 256, 512]

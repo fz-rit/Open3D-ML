@@ -51,6 +51,7 @@ class Mangrove3D(BaseDataset):
         pcd_dir_name='pcd',
         label_ext='.label',
         save_label_offset=0,
+    train_label_offset=0,
         label_to_names=None,
         # Optional automatic validation split when val_files not provided
         val_split_ratio=None,
@@ -97,6 +98,7 @@ class Mangrove3D(BaseDataset):
         self.label_dir_name = label_dir_name
         self.label_ext = label_ext
         self.save_label_offset = save_label_offset
+        self.train_label_offset = train_label_offset
         self.val_split_ratio = val_split_ratio
         self.val_split_seed = val_split_seed
         self.label_stem_suffix_from = label_stem_suffix_from
@@ -321,6 +323,12 @@ class Mangrove3DSplit(BaseDatasetSplit):
                 raise FileNotFoundError(f"Label file not found for {csv_path}: {label_path}")
             labels = pd.read_csv(label_path, header=None, sep=r'\s+', dtype=np.int32).values
             labels = labels.squeeze().astype(np.int32)
+            if self.dataset.train_label_offset != 0:
+                labels = labels + int(self.dataset.train_label_offset)
+                if (labels < 0).any():
+                    raise ValueError(
+                        f"Negative label encountered after applying train_label_offset={self.dataset.train_label_offset} for {csv_path}"
+                    )
             if labels.ndim != 1 or labels.shape[0] != points.shape[0]:
                 raise ValueError(
                     f"Label shape mismatch for {csv_path}: got {labels.shape}, expected ({points.shape[0]},)"
