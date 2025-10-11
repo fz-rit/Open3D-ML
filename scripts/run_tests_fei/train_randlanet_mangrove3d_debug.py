@@ -4,6 +4,14 @@ import os
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import torch.multiprocessing as mp
+
+# Fix for Python 3.12 multiprocessing issues with num_workers > 0
+# Set the start method to 'spawn' before importing other modules
+try:
+    mp.set_start_method('spawn', force=True)
+except RuntimeError:
+    pass  # Already set
 
 # Set up debug logging BEFORE importing ml3d modules
 logging.basicConfig(
