@@ -115,6 +115,9 @@ class Mangrove3D(BaseDataset):
         self.label_values = np.sort([k for k in self.label_to_names.keys()])
         self.label_to_idx = {l: i for i, l in enumerate(self.label_values)}
         self.ignored_labels = np.array(ignored_label_inds, dtype=np.int64)
+        
+        # Set num_classes for consistency with other datasets
+        self.num_classes = len(self.label_to_names)
 
         root = Path(self.cfg.dataset_path)
 
@@ -237,7 +240,8 @@ class Mangrove3D(BaseDataset):
         path = cfg.test_result_folder
         make_dir(path)
 
-        pred = results['predict_labels'] + self.save_label_offset
+        # Convert predictions from 0-based back to 1-based for file saving
+        pred = results['predict_labels'] + 1
         store_path = join(path, self.name, name + self.label_ext)
         make_dir(Path(store_path).parent)
         np.savetxt(store_path, pred.astype(np.int32), fmt='%d')
@@ -323,12 +327,29 @@ class Mangrove3DSplit(BaseDatasetSplit):
                 raise FileNotFoundError(f"Label file not found for {csv_path}: {label_path}")
             labels = pd.read_csv(label_path, header=None, sep=r'\s+', dtype=np.int32).values
             labels = labels.squeeze().astype(np.int32)
-            if self.dataset.train_label_offset != 0:
-                labels = labels + int(self.dataset.train_label_offset)
-                if (labels < 0).any():
-                    raise ValueError(
-                        f"Negative label encountered after applying train_label_offset={self.dataset.train_label_offset} for {csv_path}"
-                    )
+            
+            # Convert from 1-based file labels to 0-based training labels
+            labels = labels - 1
+            
+            # Validate labels are in valid range [0, num_classes-1]
+            if (labels < 0).any():
+                unique_labels = np.unique(labels)
+                raise ValueError(
+                    f"Negative labels found after subtracting 1 for {csv_path}. "
+                    f"Unique labels after conversion: {unique_labels}. "
+                    f"File labels should be >= 1."
+                )
+            
+            max_label = labels.max()
+            if max_label >= self.dataset.num_classes:
+                unique_labels = np.unique(labels)
+                raise ValueError(
+                    f"Label value {max_label} exceeds num_classes={self.dataset.num_classes} for {csv_path}. "
+                    f"Unique labels after conversion (0-based): {unique_labels}. "
+                    f"Expected range: [0, {self.dataset.num_classes-1}]. "
+                    f"File should contain labels in range [1, {self.dataset.num_classes}]."
+                )
+            
             if labels.ndim != 1 or labels.shape[0] != points.shape[0]:
                 raise ValueError(
                     f"Label shape mismatch for {csv_path}: got {labels.shape}, expected ({points.shape[0]},)"

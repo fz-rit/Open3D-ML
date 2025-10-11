@@ -16,17 +16,15 @@ dataset:
   feature_last_col: nz
   pcd_dir_name: pcd
   label_dir_name: label
-  # Label files have .label extension
-  save_label_offset: 1  # labels are 1-based in files; add +1 to saved predictions
-  # Shift training labels from 1..K to 0..K-1
-  train_label_offset: -1
-  # Optional class name mapping (adjust names as needed)
+  # Label files have .label extension with 1-based labels (1-5)
+  # We subtract 1 when reading to convert to 0-based (0-4) for training
+  # Class name mapping (0-based for training)
   label_to_names:
-    1: Ground_and_water
-    2: Stem
-    3: Canopy
-    4: Roots
-    5: Object
+    0: Ground_and_water
+    1: Stem
+    2: Canopy
+    3: Roots
+    4: Object
 
 model:
   name: RandLANet
