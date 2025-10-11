@@ -69,7 +69,7 @@ pipeline:
   optimizer:
     lr: 0.001
   batch_size: 2
-  num_workers: 1  # Use 1 worker to avoid multiprocessing issues
+  num_workers: 0  # Use 0 workers to avoid multiprocessing issues
   main_log_dir: ./logs
   max_epoch: 1
   save_ckpt_freq: 5
