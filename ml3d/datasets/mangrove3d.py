@@ -265,6 +265,11 @@ class Mangrove3DSplit(BaseDatasetSplit):
         """
         labels = pd.read_csv(label_path, header=None, sep=r'\s+', dtype=np.int32).values
         labels = labels.squeeze().astype(np.int32)
+        
+        # DEBUG: Log raw labels from file
+        unique_raw = np.unique(labels)
+        log.debug(f"[DEBUG] Raw labels from file: {unique_raw}")
+        
         # Convert from 1-based (file format) to 0-based (internal format)
         labels = labels - 1
         return labels
@@ -339,6 +344,13 @@ class Mangrove3DSplit(BaseDatasetSplit):
             
             # Read labels using helper function (converts 1-based to 0-based)
             labels = self._read_labels(label_path)
+            
+            # DEBUG: Log label statistics
+            unique_labels = np.unique(labels)
+            log.debug(f"[DEBUG] File: {csv_path.name}")
+            log.debug(f"[DEBUG] Unique labels after conversion: {unique_labels}")
+            log.debug(f"[DEBUG] Label range: [{labels.min()}, {labels.max()}]")
+            log.debug(f"[DEBUG] num_classes: {self.dataset.num_classes}")
             
             # Validate labels are in valid range [0, num_classes-1]
             if (labels < 0).any():
