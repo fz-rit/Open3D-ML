@@ -67,7 +67,7 @@ pipeline:
   optimizer:
     lr: 0.001
   batch_size: 1
-  num_workers: 4
+  num_workers: 0  # Set to 0 to avoid multiprocessing segfaults during debugging
   main_log_dir: ./logs
   max_epoch: 3
   save_ckpt_freq: 5
