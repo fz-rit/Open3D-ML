@@ -38,21 +38,21 @@ def main():
     # Get label mapping
     mangrove_labels = dataset.label_to_names
     
-    # Custom colormap for Mangrove3D
-    # COLOR_TO_INDEX: "128,0,128": 0, "165,42,42": 1, "0,128,0": 2, "255,165,0": 3, "255,255,0": 4
+    # Custom colormap for Mangrove3D (RGB values normalized to [0.0, 1.0])
+    # Original: "128,0,128": 0, "165,42,42": 1, "0,128,0": 2, "255,165,0": 3, "255,255,0": 4
     color_map = {
-        0: [128, 0, 128],    # Ground & Water - Purple
-        1: [165, 42, 42],     # Stem - Brown
-        2: [0, 128, 0],       # Canopy - Green
-        3: [255, 165, 0],     # Roots - Orange
-        4: [255, 255, 0],     # Objects - Yellow
+        0: [128/255, 0/255, 128/255],      # Ground & Water - Purple
+        1: [165/255, 42/255, 42/255],      # Stem - Brown
+        2: [0/255, 128/255, 0/255],        # Canopy - Green
+        3: [255/255, 165/255, 0/255],      # Roots - Orange
+        4: [255/255, 255/255, 0/255],      # Objects - Yellow
     }
     
     # Setup visualizer with label lookup table
     v = vis.Visualizer()
     lut = vis.LabelLUT()
     for val in sorted(mangrove_labels.keys()):
-        lut.add_label(mangrove_labels[val], val, color_map.get(val, [128, 128, 128]))
+        lut.add_label(mangrove_labels[val], val, color_map.get(val, [0.5, 0.5, 0.5]))
     v.set_lut("labels", lut)
     v.set_lut("pred", lut)
     
