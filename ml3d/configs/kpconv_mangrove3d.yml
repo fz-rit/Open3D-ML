@@ -92,6 +92,7 @@ pipeline:
   main_log_dir: ./logs
   max_epoch: 2
   num_workers: 0
+  pin_memory: false
   save_ckpt_freq: 5
   scheduler_gamma: 0.95
   test_batch_size: 1
