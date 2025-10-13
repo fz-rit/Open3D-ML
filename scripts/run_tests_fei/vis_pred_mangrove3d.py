@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-CHECKPOINT_PATH = "/home/fzhcis/mylab/Open3D-ML/scripts/run_tests_fei/logs/RandLANet_Mangrove3D_torch/checkpoint/ckpt_01000.pth"
+CHECKPOINT_PATH = "/home/fzhcis/mylab/Open3D-ML/scripts/run_tests_fei/logs/RandLANet_Mangrove3D_torch/checkpoint/ckpt_00100.pth"
 CONFIG_PATH = repo_root / "ml3d/configs/randlanet_mangrove3d.yml"
 DATA_PATH = "/home/fzhcis/data/mangrove3d_pcd/"
 # ============================================================================
