@@ -94,3 +94,22 @@ model:
 
 **Solution**: Use `num_workers: 0` (minimal performance impact with caching)
 
+# Run Traning and Visualization
+## Train on Mangrove3D
+```python
+# using RandLANet
+python train_randlanet_generic.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_mangrove3d.yml
+
+# using KPFCNN
+python train_kpconv_generic.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/kpconv_mangrove3d.yml
+
+```
+
+## Evaluate annd Visualize Predictions
+```python
+# using RandLANet
+python vis_pred_mangrove3d.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_mangrove3d.yml --checkpoint /home/fzhcis/mylab/Open3D-ML/scripts/run_tests_fei/logs/RandLANet_Mangrove3D_torch/checkpoint/ckpt_01000.pth --model RandLANet
+
+# using KPFCNN
+python vis_pred_mangrove3d.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/kpconv_mangrove3d.yml --checkpoint /path/to/kpconv/checkpoint.pth --model KPFCNN
+```

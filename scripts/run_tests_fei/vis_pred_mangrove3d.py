@@ -1,9 +1,10 @@
 #!/usr/bin/env python
-"""Visualization script for Mangrove3D predictions using trained RandLANet model."""
+"""Visualization script for Mangrove3D predictions using trained models."""
 
 import logging
 import sys
 import os
+import argparse
 from pathlib import Path
 import numpy as np
 
@@ -21,19 +22,29 @@ import torch
 
 log = logging.getLogger(__name__)
 
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
-CHECKPOINT_PATH = "/home/fzhcis/mylab/Open3D-ML/scripts/run_tests_fei/logs/RandLANet_Mangrove3D_torch/checkpoint/ckpt_00100.pth"
-CONFIG_PATH = repo_root / "ml3d/configs/randlanet_mangrove3d.yml"
-DATA_PATH = "/home/fzhcis/data/mangrove3d_pcd/"
-# ============================================================================
-
 
 def main():
+    parser = argparse.ArgumentParser(description='Visualize Mangrove3D predictions')
+    parser.add_argument('--config', type=str, required=True, help='Path to config YAML file')
+    parser.add_argument('--checkpoint', type=str, required=True, help='Path to model checkpoint')
+    parser.add_argument('--model', type=str, default='RandLANet', 
+                        choices=['RandLANet', 'KPFCNN'],
+                        help='Model type (default: RandLANet)')
+    args = parser.parse_args()
+    
     # Load dataset configuration and initialize dataset
-    cfg = utils.Config.load_from_file(str(CONFIG_PATH))
+    if not Path(args.config).exists():
+        raise FileNotFoundError(f"Config file not found: {args.config}")
+    
+    if not Path(args.checkpoint).exists():
+        raise FileNotFoundError(f"Checkpoint not found: {args.checkpoint}")
+    
+    cfg = utils.Config.load_from_file(args.config)
     dataset = datasets.Mangrove3D(cfg.dataset.pop('dataset_path', None), **cfg.dataset)
+    
+    log.info(f"Config: {args.config}")
+    log.info(f"Checkpoint: {args.checkpoint}")
+    log.info(f"Model: {args.model}")
     
     # Get label mapping
     mangrove_labels = dataset.label_to_names
@@ -56,15 +67,16 @@ def main():
     v.set_lut("labels", lut)
     v.set_lut("pred", lut)
     
-    # Load model
-    model = models.RandLANet(**cfg.model)
-    pipeline = pipelines.SemanticSegmentation(model, dataset=dataset)
+    # Load model based on type
+    if args.model == 'RandLANet':
+        model = models.RandLANet(**cfg.model)
+    elif args.model == 'KPFCNN':
+        model = models.KPFCNN(**cfg.model)
+    else:
+        raise ValueError(f"Unsupported model: {args.model}")
     
-    # Load checkpoint
-    if not Path(CHECKPOINT_PATH).exists():
-        raise FileNotFoundError(f"Checkpoint not found: {CHECKPOINT_PATH}")
-    pipeline.load_ckpt(CHECKPOINT_PATH)
-    log.info(f"Loaded checkpoint: {CHECKPOINT_PATH}")
+    pipeline = pipelines.SemanticSegmentation(model, dataset=dataset)
+    pipeline.load_ckpt(args.checkpoint)
     
     # Get validation split data
     val_split = dataset.get_split("validation")
