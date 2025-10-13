@@ -13,7 +13,7 @@ dataset:
   # Mangrove3D-specific options
   use_features: true
   feature_first_col: nx
-  feature_last_col: nzs
+  feature_last_col: nz
   pcd_dir_name: pcd
   label_dir_name: label
   # Label handling:
