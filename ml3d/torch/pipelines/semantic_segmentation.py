@@ -383,7 +383,7 @@ class SemanticSegmentation(BasePipeline):
         self.optimizer, self.scheduler = model.get_optimizer(cfg)
 
         is_resume = model.cfg.get('is_resume', True)
-        self.load_ckpt(model.cfg.ckpt_path, is_resume=is_resume)
+        start_epoch = self.load_ckpt(model.cfg.ckpt_path, is_resume=is_resume)
 
         dataset_name = dataset.name if dataset is not None else ''
         tensorboard_dir = join(
@@ -400,7 +400,7 @@ class SemanticSegmentation(BasePipeline):
 
         log.info("Started training")
 
-        for epoch in range(0, cfg.max_epoch + 1):
+        for epoch in range(start_epoch, cfg.max_epoch + 1):
 
             log.info(f'=== EPOCH {epoch:d}/{cfg.max_epoch:d} ===')
             model.train()
@@ -665,6 +665,9 @@ class SemanticSegmentation(BasePipeline):
     def load_ckpt(self, ckpt_path=None, is_resume=True):
         """Load a checkpoint. You must pass the checkpoint and indicate if you
         want to resume.
+        
+        Returns:
+            int: The epoch number from the checkpoint (0 if no checkpoint loaded)
         """
         train_ckpt_dir = join(self.cfg.logs_dir, 'checkpoint')
         make_dir(train_ckpt_dir)
@@ -675,7 +678,7 @@ class SemanticSegmentation(BasePipeline):
                 log.info('ckpt_path not given. Restore from the latest ckpt')
             else:
                 log.info('Initializing from scratch.')
-                return
+                return 0
 
         if not exists(ckpt_path):
             raise FileNotFoundError(f' ckpt {ckpt_path} not found')
@@ -689,6 +692,12 @@ class SemanticSegmentation(BasePipeline):
         if 'scheduler_state_dict' in ckpt and hasattr(self, 'scheduler'):
             log.info(f'Loading checkpoint scheduler_state_dict')
             self.scheduler.load_state_dict(ckpt['scheduler_state_dict'])
+        
+        # Return the epoch number from checkpoint
+        start_epoch = ckpt.get('epoch', 0)
+        if is_resume and start_epoch > 0:
+            log.info(f'Resuming from epoch {start_epoch}')
+        return start_epoch
 
     def save_ckpt(self, epoch):
         """Save a checkpoint at the passed epoch."""
