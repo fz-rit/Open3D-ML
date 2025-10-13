@@ -89,21 +89,8 @@ model:
 - Verify file labels are 1-based (1,2,3,4,5)
 - Check `num_classes` matches the number of classes
 
-### Segmentation Fault with num_workers > 0
+### Segmentation Fault with num_workers > 0s
 **Cause**: Unpicklable local functions in `SemSegRandomSampler`
 
 **Solution**: Use `num_workers: 0` (minimal performance impact with caching)
 
-## Configuration Summary
-
-```yaml
-dataset:
-  use_cache: true        # Enable for faster training
-  num_points: 65536
-  num_classes: 5         # Set in model config
-  
-pipeline:
-  batch_size: 4          # Adjust based on GPU memory
-  num_workers: 0         # Must be 0 due to sampler limitations
-  max_epoch: 100         # Adjust as needed
-```
