@@ -71,7 +71,7 @@ pipeline:
   batch_size: 4
   num_workers: 0  # Must be 0: sampler contains unpicklable local functions
   main_log_dir: ./logs
-  max_epoch: 250
+  max_epoch: 150
   save_ckpt_freq: 5
   scheduler_gamma: 0.9886
   test_batch_size: 2
