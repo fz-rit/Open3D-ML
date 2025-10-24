@@ -96,9 +96,13 @@ class Semantic3D(BaseDataset):
         # self.train_files = np.sort(
         #     [f for f in self.train_files if f not in self.val_files])
         dataset_root = Path(self.cfg.dataset_path)
+        log.info(f"Dataset root path: {dataset_root}, exists: {dataset_root.exists()}")
+        
         train_val_paths = sorted(dataset_root.glob('train/*.txt'))
         test_paths = sorted(dataset_root.glob('test/*.txt'))
+        
         log.info(f"Found {len(train_val_paths)} train/val files; {len(test_paths)} test files.")
+        
         self.val_files, self.train_files = [], []
         for path in train_val_paths:
             if path.stem in cfg.val_files:
