@@ -32,7 +32,7 @@ def read_class_id_label(file_path):
     """
     labels = pd.read_csv(file_path,
                         header=None,
-                        sep='\s+',
+                        sep=r'\s+',
                         dtype=np.int32).values
     labels = np.array(labels, dtype=np.int32).reshape((-1,))
     print(f"Shape of class_id array: {labels.shape}")
