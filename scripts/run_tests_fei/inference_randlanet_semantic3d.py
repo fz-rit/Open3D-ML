@@ -58,6 +58,10 @@ import ml3d.datasets as datasets
 import ml3d.torch.models as models
 import ml3d.torch.pipelines as pipelines
 import ml3d.utils as utils
+import ml3d.vis as vis
+from ml3d.torch.modules.metrics import SemSegMetric
+import torch
+import numpy as np
 
 log = logging.getLogger(__name__)
 
@@ -89,6 +93,10 @@ def main():
                         help='Run inference on all test samples')
     parser.add_argument('--indices', type=int, nargs='+',
                         help='List of test sample indices to run (space-separated)')
+    parser.add_argument('--visualize', action='store_true',
+                        help='Launch visualizer after inference')
+    parser.add_argument('--metrics', action='store_true',
+                        help='Compute and display quantitative metrics (accuracy, IoU, confusion matrix)')
     args = parser.parse_args()
     
     # Load configuration
@@ -118,6 +126,18 @@ def main():
     
     pipeline.load_ckpt(ckpt_path=args.checkpoint)
     
+    # Get label mapping
+    semantic3d_labels = dataset.label_to_names
+    
+    # Setup visualizer if needed
+    if args.visualize:
+        v = vis.Visualizer()
+        lut = vis.LabelLUT()
+        for val in sorted(semantic3d_labels.keys()):
+            lut.add_label(semantic3d_labels[val], val)
+        v.set_lut("labels", lut)
+        v.set_lut("pred", lut)
+    
     # Run inference
     test_split = dataset.get_split("test")
     total = len(test_split)
@@ -140,14 +160,86 @@ def main():
 
     log.info(f"Running inference on {len(indices)} sample(s): {indices[:5]}{' ...' if len(indices) > 5 else ''}")
 
+    vis_points = []
+    all_gt_labels = []
+    all_pred_labels = []
+    
     for k, idx in enumerate(indices, start=1):
         log.info(f"[{k}/{len(indices)}] Inference on test index {idx}")
+        
         data = test_split.get_data(idx)
+        attr = test_split.get_attr(idx)
         result = pipeline.run_inference(data)
 
+        pred_labels = result['predict_labels'].astype(np.int32)
+        gt_labels = data['label'].astype(np.int32)
+        
+        # Collect for metrics
+        if args.metrics:
+            all_gt_labels.append(gt_labels)
+            all_pred_labels.append(pred_labels)
+        
+        # Prepare visualization data
+        if args.visualize:
+            vis_d = {
+                "name": f"{attr['name']}_pred",
+                "points": data['point'],
+                "labels": gt_labels,
+                "pred": pred_labels,
+            }
+            vis_points.append(vis_d)
+        
         # Display concise results for each sample
         shapes = {k: (v.shape if hasattr(v, 'shape') else type(v)) for k, v in result.items()}
         log.info(f"Results: {shapes}")
+    
+    # ========================================================================
+    # Quantitative Analysis: Accuracy, IoU/mIoU, and Confusion Matrix
+    # ========================================================================
+    if args.metrics and len(all_gt_labels) > 0:
+        all_gt = np.concatenate(all_gt_labels)
+        all_pred = np.concatenate(all_pred_labels)
+        
+        metric = SemSegMetric()
+        num_classes = len(semantic3d_labels)
+        
+        # Convert predictions to one-hot format for metric computation
+        scores = torch.nn.functional.one_hot(
+            torch.tensor(all_pred, dtype=torch.long), 
+            num_classes=num_classes
+        ).float()
+        labels = torch.tensor(all_gt, dtype=torch.long)
+        
+        # Update metric
+        metric.update(scores, labels)
+        
+        # Get metrics
+        accuracies = metric.acc()
+        ious = metric.iou()
+        confusion_mat = metric.confusion_matrix
+        
+        # Display results
+        print("\n" + "="*70)
+        print("QUANTITATIVE ANALYSIS RESULTS - TEST SET")
+        print("="*70)
+        print(f"Overall Accuracy: {accuracies[-1]*100:.2f}%")
+        print(f"Mean IoU (mIoU):  {ious[-1]*100:.2f}%")
+        print("\nPer-Class Metrics:")
+        print(f"{'Class Name':<30} {'Accuracy':>12} {'IoU':>12}")
+        print("-"*70)
+        for i in sorted(semantic3d_labels.keys()):
+            label_name = semantic3d_labels[i]
+            acc_val = accuracies[i] * 100 if not np.isnan(accuracies[i]) else 0.0
+            iou_val = ious[i] * 100 if not np.isnan(ious[i]) else 0.0
+            print(f"{label_name:<30} {acc_val:>11.2f}% {iou_val:>11.2f}%")
+        print("="*70)
+        print(f"\nConfusion Matrix:\n{confusion_mat}")
+        print("="*70 + "\n")
+    
+    # Visualize results
+    if args.visualize and len(vis_points) > 0:
+        log.info("Launching visualizer...")
+        v.visualize(vis_points)
     
     # Uncomment to run full test evaluation
     # log.info("Running full test evaluation...")

@@ -116,9 +116,15 @@ python vis_pred_mangrove3d.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs
 
 ## Inference on Semantic3D
 ```python
-# Run all test samples
-python scripts/run_tests_fei/inference_randlanet_semantic3d.py --all
+# Run inference on specific indices with metrics
+python inference_randlanet_semantic3d.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_semantic3d.yml --indices 0 1 2 --metrics
 
-# Run specific samples
-python scripts/run_tests_fei/inference_randlanet_semantic3d.py --indices 0 3 5
+# Run on all test samples with visualization
+python inference_randlanet_semantic3d.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_semantic3d.yml --all --visualize
+
+# Run with both metrics and visualization
+python inference_randlanet_semantic3d.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_semantic3d.yml --indices 0 1 2 --metrics --visualize
+
+# Just inference (no metrics or visualization)
+python inference_randlanet_semantic3d.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_semantic3d.yml --indices 0
 ```
