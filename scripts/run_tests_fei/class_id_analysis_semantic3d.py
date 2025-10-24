@@ -115,10 +115,11 @@ def plot_class_id_hist(class_id_vec, class_map, save_path):
     plt.savefig(save_path, dpi=300)
     plt.show()
 
-root_dir = Path("/home/fzhcis/mylab/data/semantic3d/preprocessed/train_val")
-label_paths = list(root_dir.glob('**/*.labels'))
-if len(label_paths) != 40:
-    raise ValueError(f"Expected 40 label files, found {len(label_paths)}. Please check the directory structure.")
+root_dir = Path("/home/fzhcis/data/semantic3d_full/Semantic3D/train")
+# label_paths = list(root_dir.glob('**/*.labels'))
+label_paths = list(root_dir.glob('*.labels'))
+if len(label_paths) != 15:
+    raise ValueError(f"Expected 15 label files, found {len(label_paths)}. Please check the directory structure.")
 class_id_ls, class_id_all = grab_class_id(label_paths)
 save_path = root_dir / "class_id_histogram.png"
 plot_class_id_hist(class_id_all, CLASS_MAP, save_path=save_path)
