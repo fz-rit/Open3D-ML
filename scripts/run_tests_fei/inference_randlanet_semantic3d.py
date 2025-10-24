@@ -97,6 +97,7 @@ def main():
     
     # Override dataset path
     cfg.dataset['dataset_path'] = args.dataset_path
+    log.info(f"Dataset path: {cfg.dataset['dataset_path']}")
     
     # Initialize model and dataset
     model = ml3d.models.RandLANet(**cfg.model)
