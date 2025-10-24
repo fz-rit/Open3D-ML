@@ -113,3 +113,12 @@ python vis_pred_mangrove3d.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs
 # using KPFCNN
 python vis_pred_mangrove3d.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/kpconv_mangrove3d.yml --checkpoint /path/to/kpconv/checkpoint.pth --model KPFCNN
 ```
+
+## Inference on Semantic3D
+```python
+# Run all test samples
+python scripts/run_tests_fei/inference_randlanet_semantic3d.py --all
+
+# Run specific samples
+python scripts/run_tests_fei/inference_randlanet_semantic3d.py --indices 0 3 5
+```

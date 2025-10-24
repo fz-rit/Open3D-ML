@@ -73,28 +73,40 @@ class Semantic3D(BaseDataset):
         self.label_to_idx = {l: i for i, l in enumerate(self.label_values)}
         self.ignored_labels = np.array([0])
 
-        self.all_files = glob.glob(str(Path(self.cfg.dataset_path) / '*.txt'))
+        # self.all_files = glob.glob(str(Path(self.cfg.dataset_path) / '*.txt'))
 
-        self.train_files = [
-            f for f in self.all_files if exists(
-                str(Path(f).parent / Path(f).name.replace('.txt', '.labels')))
-        ]
-        self.test_files = [
-            f for f in self.all_files if f not in self.train_files
-        ]
+        # self.train_files = [
+        #     f for f in self.all_files if exists(
+        #         str(Path(f).parent / Path(f).name.replace('.txt', '.labels')))
+        # ]
+        # self.test_files = [
+        #     f for f in self.all_files if f not in self.train_files
+        # ]
 
-        self.train_files = np.sort(self.train_files)
-        self.test_files = np.sort(self.test_files)
-        self.val_files = []
+        # self.train_files = np.sort(self.train_files)
+        # self.test_files = np.sort(self.test_files)
+        # self.val_files = []
 
-        for i, file_path in enumerate(self.train_files):
-            for val_file in cfg.val_files:
-                if val_file in file_path:
-                    self.val_files.append(file_path)
-                    break
+        # for i, file_path in enumerate(self.train_files):
+        #     for val_file in cfg.val_files:
+        #         if val_file in file_path:
+        #             self.val_files.append(file_path)
+        #             break
 
-        self.train_files = np.sort(
-            [f for f in self.train_files if f not in self.val_files])
+        # self.train_files = np.sort(
+        #     [f for f in self.train_files if f not in self.val_files])
+        self.train_val_files = np.sort(
+            glob.glob(str(Path(self.cfg.dataset_path) / 'train' / '*.txt')))
+        self.test_files = np.sort(
+            glob.glob(str(Path(self.cfg.dataset_path) / 'test' / '*.txt')))
+        self.val_files, self.train_files = [], []
+        for file_path in self.train_val_files:
+            file_name = file_path.split('/')[-1].replace('.txt', '')
+            if file_name in cfg.val_files:
+                self.val_files.append(file_path)
+            else:
+                self.train_files.append(file_path)
+        self.val_files = np.sort(self.val_files)
 
     @staticmethod
     def get_label_to_names():
