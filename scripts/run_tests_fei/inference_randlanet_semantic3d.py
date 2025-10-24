@@ -54,8 +54,10 @@ from pathlib import Path
 repo_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(repo_root))
 
-import open3d.ml as _ml3d
-import open3d.ml.torch as ml3d
+import ml3d.datasets as datasets
+import ml3d.torch.models as models
+import ml3d.torch.pipelines as pipelines
+import ml3d.utils as utils
 
 log = logging.getLogger(__name__)
 
@@ -93,21 +95,21 @@ def main():
     if not Path(args.config).exists():
         raise FileNotFoundError(f"Config file not found: {args.config}")
     
-    cfg = _ml3d.utils.Config.load_from_file(args.config)
+    cfg = utils.Config.load_from_file(args.config)
     
     # Override dataset path
     cfg.dataset['dataset_path'] = args.dataset_path
     log.info(f"Dataset path: {cfg.dataset['dataset_path']}")
     
     # Initialize model and dataset
-    model = ml3d.models.RandLANet(**cfg.model)
-    dataset = ml3d.datasets.Semantic3D(
+    model = models.RandLANet(**cfg.model)
+    dataset = datasets.Semantic3D(
         cfg.dataset.pop('dataset_path', None), 
         **cfg.dataset
     )
     
     # Initialize pipeline
-    pipeline = ml3d.pipelines.SemanticSegmentation(
+    pipeline = pipelines.SemanticSegmentation(
         model, 
         dataset=dataset, 
         device="gpu", 
