@@ -115,7 +115,7 @@ def plot_class_id_hist(class_id_vec, class_map, save_path):
     plt.savefig(save_path, dpi=300)
     plt.show()
 
-root_dir = Path("/home/fzhcis/data/semantic3d_full/Semantic3D/train")
+root_dir = Path("/home/fzhcis/data/semantic3d_full/Semantic3D/test")
 # label_paths = list(root_dir.glob('**/*.labels'))
 label_paths = list(root_dir.glob('*.labels'))
 if len(label_paths) != 15:
