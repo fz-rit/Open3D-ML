@@ -98,7 +98,7 @@ class Semantic3D(BaseDataset):
         dataset_root = Path(self.cfg.dataset_path)
         train_val_paths = sorted(dataset_root.glob('train/*.txt'))
         test_paths = sorted(dataset_root.glob('test/*.txt'))
-        
+        print(f"Found {len(train_val_paths)} train/val files; {len(test_paths)} test files.")
         self.val_files, self.train_files = [], []
         for path in train_val_paths:
             if path.stem in cfg.val_files:
