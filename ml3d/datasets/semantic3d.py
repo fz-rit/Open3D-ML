@@ -95,18 +95,19 @@ class Semantic3D(BaseDataset):
 
         # self.train_files = np.sort(
         #     [f for f in self.train_files if f not in self.val_files])
-        self.train_val_files = np.sort(
-            glob.glob(str(Path(self.cfg.dataset_path) / 'train' / '*.txt')))
-        self.test_files = np.sort(
-            glob.glob(str(Path(self.cfg.dataset_path) / 'test' / '*.txt')))
+        dataset_root = Path(self.cfg.dataset_path)
+        train_val_paths = sorted(dataset_root.glob('train/*.txt'))
+        test_paths = sorted(dataset_root.glob('test/*.txt'))
+        
         self.val_files, self.train_files = [], []
-        for file_path in self.train_val_files:
-            file_name = file_path.split('/')[-1].replace('.txt', '')
-            if file_name in cfg.val_files:
-                self.val_files.append(file_path)
+        for path in train_val_paths:
+            if path.stem in cfg.val_files:
+                self.val_files.append(str(path))
             else:
-                self.train_files.append(file_path)
-        self.val_files = np.sort(self.val_files)
+                self.train_files.append(str(path))
+        
+        self.test_files = [str(p) for p in test_paths]
+        self.val_files = sorted(self.val_files)
 
     @staticmethod
     def get_label_to_names():
