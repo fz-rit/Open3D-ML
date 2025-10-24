@@ -10,8 +10,8 @@ dataset:
   val_files:
   - domfountain_station1_xyz_intensity_rgb
   - bildstein_station1_xyz_intensity_rgb
-  steps_per_epoch_train: 8
-  steps_per_epoch_valid: 2
+  steps_per_epoch_train: 50
+  steps_per_epoch_valid: 10
 model:
   name: RandLANet
   batcher: DefaultBatcher
