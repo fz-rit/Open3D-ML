@@ -6,7 +6,7 @@ dataset:
   ignored_label_inds: [0]
   num_points: 65536
   test_result_folder: ./test
-  use_cache: false
+  use_cache: true
   val_files:
   - domfountain_station1_xyz_intensity_rgb
   - bildstein_station1_xyz_intensity_rgb
