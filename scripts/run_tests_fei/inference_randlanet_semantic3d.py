@@ -78,10 +78,10 @@ def main():
                         default='ml3d/configs/randlanet_semantic3d.yml',
                         help='Path to config YAML file')
     parser.add_argument('--dataset_path', type=str,
-                        default='/home/fzhcis/data/semantic3d_full/Semantic3D/test',
+                        default='/home/fzhcis/data/semantic3d_full/Semantic3D',
                         help='Path to dataset directory')
     parser.add_argument('--checkpoint', type=str,
-                        default='./logs/RandLANet_Semantic3D_torch/checkpoint/ckpt_00050.pth',
+                        default='./logs/RandLANet_Semantic3D_torch/checkpoint/ckpt_00200.pth',
                         help='Path to model checkpoint')
     parser.add_argument('--all', action='store_true',
                         help='Run inference on all test samples')
