@@ -212,7 +212,6 @@ def main():
     # Run inference
     test_split = dataset.get_split("test")
     total = len(test_split)
-    log.info(f"Test split size: {total} samples")
 
     if total == 0:
         log.warning("No test samples found. Exiting.")
@@ -221,15 +220,13 @@ def main():
     # Determine which indices to run
     indices = select_indices(args, total)
 
-    log.info(f"Running inference on {len(indices)} sample(s): {indices[:5]}{' ...' if len(indices) > 5 else ''}")
+    log.info(f"Running inference on {len(indices)} sample(s) from test set (total: {total})")
 
     vis_points = []
     all_gt_labels = []
     all_pred_labels = []
     
     for k, idx in enumerate(indices, start=1):
-        log.info(f"[{k}/{len(indices)}] Inference on test index {idx}")
-        
         data = test_split.get_data(idx)
         attr = test_split.get_attr(idx)
         result = pipeline.run_inference(data)
@@ -251,10 +248,6 @@ def main():
                 "labels": gt_labels,
                 "pred": pred_labels_raw + 1,  # Display as Semantic3D IDs (1-8)
             })
-        
-        # Display concise results for each sample
-        shapes = {k: (v.shape if hasattr(v, 'shape') else type(v)) for k, v in result.items()}
-        log.info(f"Results: {shapes}")
     
     # Compute and display metrics
     if args.metrics and len(all_gt_labels) > 0:
