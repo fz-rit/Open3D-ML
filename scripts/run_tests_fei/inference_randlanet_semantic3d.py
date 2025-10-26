@@ -65,17 +65,82 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
+###########################
+# Helpers (kept minimal)  #
+###########################
 
-def download_checkpoint(ckpt_path, url):
-    """Download model checkpoint if it doesn't exist."""
-    if not os.path.exists(ckpt_path):
-        log.info(f"Downloading checkpoint from {url}")
-        os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
-        cmd = f"wget {url} -O {ckpt_path}"
-        os.system(cmd)
-        log.info("Download complete")
-    else:
-        log.info(f"Using existing checkpoint: {ckpt_path}")
+def load_cfg(config_path: str):
+    if not Path(config_path).exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+    return utils.Config.load_from_file(config_path)
+
+
+def require_paths(cfg, cfg_path: str):
+    # dataset_path
+    dataset_path = cfg.dataset.get('dataset_path') if isinstance(cfg.dataset, dict) else getattr(cfg.dataset, 'dataset_path', None)
+    if not dataset_path:
+        raise ValueError(
+            "Missing 'dataset.dataset_path' in config.\n"
+            f"Config file: {cfg_path}\n"
+            "Please set it under the 'dataset' section, e.g.:\n\n"
+            "dataset:\n  dataset_path: /abs/path/to/Semantic3D\n"
+        )
+    if not Path(dataset_path).exists():
+        raise FileNotFoundError(
+            f"Configured dataset_path does not exist: {dataset_path}\n"
+            f"Config file: {cfg_path}\n"
+            "Please update 'dataset.dataset_path' to a valid directory."
+        )
+
+    # checkpoint
+    ckpt_path = cfg.model.get('ckpt_path') if isinstance(cfg.model, dict) else getattr(cfg.model, 'ckpt_path', None)
+    if not ckpt_path:
+        raise ValueError(
+            "Missing 'model.ckpt_path' in config.\n"
+            f"Config file: {cfg_path}\n"
+            "Please set it under the 'model' section, e.g.:\n\n"
+            "model:\n  ckpt_path: /abs/path/to/checkpoint.pth\n"
+        )
+    if not Path(ckpt_path).exists():
+        raise FileNotFoundError(
+            f"Configured checkpoint file not found: {ckpt_path}\n"
+            f"Config file: {cfg_path}\n"
+            "Please update 'model.ckpt_path' to point to an existing .pth file."
+        )
+    return dataset_path, ckpt_path
+
+
+def build_components(cfg, dataset_path: str):
+    # dataset
+    cfg.dataset['dataset_path'] = dataset_path
+    dataset = datasets.Semantic3D(cfg.dataset.pop('dataset_path', None), **cfg.dataset)
+    # model + pipeline
+    model = models.RandLANet(**cfg.model)
+    pipeline = pipelines.SemanticSegmentation(model, dataset=dataset, device="gpu", **cfg.pipeline)
+    return model, dataset, pipeline
+
+
+def select_indices(args, total: int):
+    if total == 0:
+        return []
+    if args.all:
+        return list(range(total))
+    if args.indices is not None:
+        invalid = [i for i in args.indices if i < 0 or i >= total]
+        if invalid:
+            raise IndexError(f"Indices out of range (size={total}): {invalid}")
+        return list(dict.fromkeys(args.indices))
+    raise ValueError("Please provide either --all or --indices <i j ...>")
+
+
+def setup_visualizer(labels):
+    v = vis.Visualizer()
+    lut = vis.LabelLUT()
+    for val in sorted(labels.keys()):
+        lut.add_label(labels[val], val)
+    v.set_lut("labels", lut)
+    v.set_lut("pred", lut)
+    return v
 
 
 def main():
@@ -83,12 +148,7 @@ def main():
     parser.add_argument('--config', type=str, 
                         default='ml3d/configs/randlanet_semantic3d.yml',
                         help='Path to config YAML file')
-    parser.add_argument('--dataset_path', type=str,
-                        default='/home/fzhcis/data/semantic3d_full/Semantic3D',
-                        help='Path to dataset directory')
-    parser.add_argument('--checkpoint', type=str,
-                        default='./logs/RandLANet_Semantic3D_torch/checkpoint/ckpt_00200.pth',
-                        help='Path to model checkpoint')
+    # Enforce dataset_path and checkpoint provided via config file only
     parser.add_argument('--all', action='store_true',
                         help='Run inference on all test samples')
     parser.add_argument('--indices', type=int, nargs='+',
@@ -99,44 +159,21 @@ def main():
                         help='Compute and display quantitative metrics (accuracy, IoU, confusion matrix)')
     args = parser.parse_args()
     
-    # Load configuration
-    if not Path(args.config).exists():
-        raise FileNotFoundError(f"Config file not found: {args.config}")
-    
-    cfg = utils.Config.load_from_file(args.config)
-    
-    # Override dataset path
-    cfg.dataset['dataset_path'] = args.dataset_path
-    log.info(f"Dataset path: {cfg.dataset['dataset_path']}")
-    
-    # Initialize model and dataset
-    model = models.RandLANet(**cfg.model)
-    dataset = datasets.Semantic3D(
-        cfg.dataset.pop('dataset_path', None), 
-        **cfg.dataset
-    )
-    
-    # Initialize pipeline
-    pipeline = pipelines.SemanticSegmentation(
-        model, 
-        dataset=dataset, 
-        device="gpu", 
-        **cfg.pipeline
-    )
-    
-    pipeline.load_ckpt(ckpt_path=args.checkpoint)
+    # Load configuration and required paths
+    cfg = load_cfg(args.config)
+    dataset_path, ckpt_path = require_paths(cfg, args.config)
+    log.info(f"Dataset path (from config): {dataset_path}")
+    log.info(f"Checkpoint (from config): {ckpt_path}")
+
+    # Build components and load checkpoint
+    model, dataset, pipeline = build_components(cfg, dataset_path)
+    pipeline.load_ckpt(ckpt_path=ckpt_path)
     
     # Get label mapping
     semantic3d_labels = dataset.label_to_names
     
     # Setup visualizer if needed
-    if args.visualize:
-        v = vis.Visualizer()
-        lut = vis.LabelLUT()
-        for val in sorted(semantic3d_labels.keys()):
-            lut.add_label(semantic3d_labels[val], val)
-        v.set_lut("labels", lut)
-        v.set_lut("pred", lut)
+    v = setup_visualizer(semantic3d_labels) if args.visualize else None
     
     # Run inference
     test_split = dataset.get_split("test")
@@ -148,15 +185,7 @@ def main():
         return
 
     # Determine which indices to run
-    if args.all:
-        indices = list(range(total))
-    elif args.indices is not None:
-        invalid = [i for i in args.indices if i < 0 or i >= total]
-        if invalid:
-            raise IndexError(f"Indices out of range (size={total}): {invalid}")
-        indices = list(dict.fromkeys(args.indices))  # dedupe, keep order
-    else:
-        raise ValueError("Please provide either --all or --indices <i j ...>")
+    indices = select_indices(args, total)
 
     log.info(f"Running inference on {len(indices)} sample(s): {indices[:5]}{' ...' if len(indices) > 5 else ''}")
 
@@ -180,14 +209,13 @@ def main():
             all_pred_labels.append(pred_labels)
         
         # Prepare visualization data
-        if args.visualize:
-            vis_d = {
+        if v is not None:
+            vis_points.append({
                 "name": f"{attr['name']}_pred",
                 "points": data['point'],
                 "labels": gt_labels,
                 "pred": pred_labels,
-            }
-            vis_points.append(vis_d)
+            })
         
         # Display concise results for each sample
         shapes = {k: (v.shape if hasattr(v, 'shape') else type(v)) for k, v in result.items()}
@@ -237,7 +265,7 @@ def main():
         print("="*70 + "\n")
     
     # Visualize results
-    if args.visualize and len(vis_points) > 0:
+    if v is not None and len(vis_points) > 0:
         log.info("Launching visualizer...")
         v.visualize(vis_points)
     
