@@ -252,14 +252,19 @@ class Semantic3DSplit(BaseDatasetSplit):
         feat = np.array(feat, dtype=np.float32)
         intensity = np.array(intensity, dtype=np.float32)
 
-        if (self.split != 'test'):
-            labels = pd.read_csv(pc_path.replace(".txt", ".labels"),
-                                 header=None,
-                                 sep='\s+',
-                                 dtype=np.int32).values
-            labels = np.array(labels, dtype=np.int32).reshape((-1,))
-        else:
-            labels = np.zeros((points.shape[0],), dtype=np.int32)
+        # Load labels - raise error if not found
+        label_path = pc_path.replace(".txt", ".labels")
+        if not exists(label_path):
+            raise FileNotFoundError(
+                f"Label file not found: {label_path}\n"
+                f"Point cloud file: {pc_path}\n"
+                "Each .txt file must have a corresponding .labels file."
+            )
+        labels = pd.read_csv(label_path,
+                             header=None,
+                             sep='\s+',
+                             dtype=np.int32).values
+        labels = np.array(labels, dtype=np.int32).reshape((-1,))
 
         data = {
             'point': points,

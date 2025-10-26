@@ -148,7 +148,6 @@ def main():
     parser.add_argument('--config', type=str, 
                         default='ml3d/configs/randlanet_semantic3d.yml',
                         help='Path to config YAML file')
-    # Enforce dataset_path and checkpoint provided via config file only
     parser.add_argument('--all', action='store_true',
                         help='Run inference on all test samples')
     parser.add_argument('--indices', type=int, nargs='+',
