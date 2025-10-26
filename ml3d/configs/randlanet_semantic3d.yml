@@ -10,8 +10,8 @@ dataset:
   val_files:
   - domfountain_station1_xyz_intensity_rgb
   - bildstein_station1_xyz_intensity_rgb
-  steps_per_epoch_train: 30
-  steps_per_epoch_valid: 6
+  steps_per_epoch_train: 40
+  steps_per_epoch_valid: 8
 model:
   name: RandLANet
   batcher: DefaultBatcher
@@ -45,7 +45,7 @@ pipeline:
   name: SemanticSegmentation
   optimizer:
     lr: 0.001
-  batch_size: 2
+  batch_size: 4
   num_workers: 8
   main_log_dir: ./logs
   max_epoch: 200
