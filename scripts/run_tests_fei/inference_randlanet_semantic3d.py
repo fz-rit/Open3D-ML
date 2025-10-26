@@ -1,46 +1,3 @@
-# import os
-# import open3d.ml as _ml3d
-# import open3d.ml.torch as ml3d
-
-# cfg_file = "ml3d/configs/randlanet_semantic3d.yml"
-# cfg = _ml3d.utils.Config.load_from_file(cfg_file)
-
-# model = ml3d.models.RandLANet(**cfg.model)
-
-# # The dataset path should contain .txt files and .labels files, where the .labels files are the ground
-# # truth labels for the corresponding .txt files. The .txt files that does not have a corresponding .labels, they will
-# # be considered as test files.
-
-# # cfg.dataset['dataset_path'] = "/shared/rc/mangrove/data/Semantic3D/"
-# cfg.dataset['dataset_path'] = "/home/fzhcis/mylab/data/semantic3d/open3d_randlanet/test_pcd"
-
-# dataset = ml3d.datasets.Semantic3D(cfg.dataset.pop('dataset_path', None), **cfg.dataset)
-# pipeline = ml3d.pipelines.SemanticSegmentation(model, dataset=dataset, device="gpu", **cfg.pipeline)
-
-# # download the weights.
-# ckpt_folder = "./logs/"
-# os.makedirs(ckpt_folder, exist_ok=True)
-# ckpt_path = ckpt_folder + "randlanet_semantic3d_202201071330utc.pth"
-# randlanet_url = "https://storage.googleapis.com/open3d-releases/model-zoo/randlanet_semantic3d_202201071330utc.pth"
-# if not os.path.exists(ckpt_path):
-#     cmd = "wget {} -O {}".format(randlanet_url, ckpt_path)
-#     os.system(cmd)
-
-# # load the parameters.
-# pipeline.load_ckpt(ckpt_path=ckpt_path)
-
-# test_split = dataset.get_split("test")
-# data = test_split.get_data(0)
-
-# # run inference on a single example.
-# # returns dict with 'predict_labels' and 'predict_scores'.
-# result = pipeline.run_inference(data)
-# print({k: (v.shape if hasattr(v, "shape") else type(v)) for k, v in result.items()})
-
-# # # evaluate performance on the test set; this will write logs to './logs'.
-# # pipeline.run_test()
-
-
 #!/usr/bin/env python
 """Inference script for RandLANet on Semantic3D dataset."""
 
@@ -143,6 +100,71 @@ def setup_visualizer(labels):
     return v
 
 
+def compute_and_display_metrics(all_gt_labels, all_pred_labels, semantic3d_labels, num_classes):
+    """Compute and display quantitative metrics (accuracy, IoU, confusion matrix).
+    
+    Args:
+        all_gt_labels: List of ground truth label arrays (Semantic3D IDs: 0-8)
+        all_pred_labels: List of prediction label arrays (model output: 0-7)
+        semantic3d_labels: Label ID to name mapping
+        num_classes: Number of valid classes (excluding unlabeled)
+    """
+    all_gt = np.concatenate(all_gt_labels)
+    all_pred = np.concatenate(all_pred_labels)
+
+    # Mask out ignored/unlabeled ground-truth (label 0)
+    valid_mask = all_gt != 0
+    valid_gt = all_gt[valid_mask]
+    valid_pred = all_pred[valid_mask]
+
+    if valid_gt.size == 0:
+        log.info("\n" + "="*70)
+        log.info("QUANTITATIVE ANALYSIS RESULTS - TEST SET")
+        log.info("="*70)
+        log.info("No valid labeled points after excluding unlabeled (0). Skipping metrics.\n")
+        return
+
+    # Remap GT from Semantic3D IDs {1..8} to 0-based indices {0..7}
+    # Predictions are already 0-7 from model output
+    gt_idx = valid_gt - 1  # {1..8} -> {0..7}
+
+    metric = SemSegMetric()
+    # Convert predictions to one-hot format for metric computation
+    scores = torch.nn.functional.one_hot(
+        torch.tensor(valid_pred, dtype=torch.long),
+        num_classes=num_classes
+    ).float()
+    labels = torch.tensor(gt_idx, dtype=torch.long)
+
+    # Update metric
+    metric.update(scores, labels)
+
+    # Get metrics
+    accuracies = metric.acc()
+    ious = metric.iou()
+    confusion_mat = metric.confusion_matrix
+
+    # Display results
+    log.info("\n" + "="*70)
+    log.info("QUANTITATIVE ANALYSIS RESULTS - TEST SET")
+    log.info("="*70)
+    log.info(f"Overall Accuracy: {accuracies[-1]*100:.2f}%")
+    log.info(f"Mean IoU (mIoU):  {ious[-1]*100:.2f}%")
+    log.info("\nPer-Class Metrics:")
+    log.info(f"{'Class Name':<30} {'Accuracy':>12} {'IoU':>12}")
+    log.info("-"*70)
+    # Only log.info valid classes (exclude unlabeled 0)
+    class_ids = [i for i in sorted(semantic3d_labels.keys()) if i != 0]
+    for idx, label_id in enumerate(class_ids):
+        label_name = semantic3d_labels[label_id]
+        acc_val = accuracies[idx] * 100 if not np.isnan(accuracies[idx]) else 0.0
+        iou_val = ious[idx] * 100 if not np.isnan(ious[idx]) else 0.0
+        log.info(f"{label_name:<30} {acc_val:>11.2f}% {iou_val:>11.2f}%")
+    log.info("="*70)
+    log.info(f"\nConfusion Matrix:\n{confusion_mat}")
+    log.info("="*70 + "\n")
+
+
 def main():
     parser = argparse.ArgumentParser(description='Run inference with RandLANet on Semantic3D')
     parser.add_argument('--config', type=str, 
@@ -170,6 +192,19 @@ def main():
     
     # Get label mapping
     semantic3d_labels = dataset.label_to_names
+
+    # Fetch num_classes from config (required)
+    if isinstance(cfg.model, dict):
+        num_classes_cfg = cfg.model.get('num_classes', None)
+    else:
+        num_classes_cfg = getattr(cfg.model, 'num_classes', None)
+    if not num_classes_cfg:
+        raise ValueError(
+            "Missing 'model.num_classes' in config.\n"
+            f"Config file: {args.config}\n"
+            "Please set it under the 'model' section, e.g.:\n\n"
+            "model:\n  num_classes: 8\n"
+        )
     
     # Setup visualizer if needed
     v = setup_visualizer(semantic3d_labels) if args.visualize else None
@@ -199,69 +234,31 @@ def main():
         attr = test_split.get_attr(idx)
         result = pipeline.run_inference(data)
 
-        pred_labels = result['predict_labels'].astype(np.int32) + 1
+        # Model outputs 0-7; keep as-is for metrics, add 1 only for visualization (Semantic3D IDs are 1-8)
+        pred_labels_raw = result['predict_labels'].astype(np.int32)
         gt_labels = data['label'].astype(np.int32)
         
-        # Collect for metrics
+        # Collect for metrics (use raw 0-7 predictions)
         if args.metrics:
             all_gt_labels.append(gt_labels)
-            all_pred_labels.append(pred_labels)
+            all_pred_labels.append(pred_labels_raw)
         
-        # Prepare visualization data
+        # Prepare visualization data (convert predictions to 1-8 for display)
         if v is not None:
             vis_points.append({
                 "name": f"{attr['name']}_pred",
                 "points": data['point'],
                 "labels": gt_labels,
-                "pred": pred_labels,
+                "pred": pred_labels_raw + 1,  # Display as Semantic3D IDs (1-8)
             })
         
         # Display concise results for each sample
         shapes = {k: (v.shape if hasattr(v, 'shape') else type(v)) for k, v in result.items()}
         log.info(f"Results: {shapes}")
     
-    # ========================================================================
-    # Quantitative Analysis: Accuracy, IoU/mIoU, and Confusion Matrix
-    # ========================================================================
+    # Compute and display metrics
     if args.metrics and len(all_gt_labels) > 0:
-        all_gt = np.concatenate(all_gt_labels)
-        all_pred = np.concatenate(all_pred_labels)
-        
-        metric = SemSegMetric()
-        num_classes = len(semantic3d_labels)
-        
-        # Convert predictions to one-hot format for metric computation
-        scores = torch.nn.functional.one_hot(
-            torch.tensor(all_pred, dtype=torch.long), 
-            num_classes=num_classes
-        ).float()
-        labels = torch.tensor(all_gt, dtype=torch.long)
-        
-        # Update metric
-        metric.update(scores, labels)
-        
-        # Get metrics
-        accuracies = metric.acc()
-        ious = metric.iou()
-        confusion_mat = metric.confusion_matrix
-        
-        # Display results
-        print("\n" + "="*70)
-        print("QUANTITATIVE ANALYSIS RESULTS - TEST SET")
-        print("="*70)
-        print(f"Overall Accuracy: {accuracies[-1]*100:.2f}%")
-        print(f"Mean IoU (mIoU):  {ious[-1]*100:.2f}%")
-        print("\nPer-Class Metrics:")
-        print(f"{'Class Name':<30} {'Accuracy':>12} {'IoU':>12}")
-        print("-"*70)
-        for i in sorted(semantic3d_labels.keys()):
-            label_name = semantic3d_labels[i]
-            acc_val = accuracies[i] * 100 if not np.isnan(accuracies[i]) else 0.0
-            iou_val = ious[i] * 100 if not np.isnan(ious[i]) else 0.0
-            print(f"{label_name:<30} {acc_val:>11.2f}% {iou_val:>11.2f}%")
-        print("="*70)
-        print(f"\nConfusion Matrix:\n{confusion_mat}")
-        print("="*70 + "\n")
+        compute_and_display_metrics(all_gt_labels, all_pred_labels, semantic3d_labels, num_classes_cfg)
     
     # Visualize results
     if v is not None and len(vis_points) > 0:
