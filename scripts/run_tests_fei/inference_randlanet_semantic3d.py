@@ -199,7 +199,7 @@ def main():
         attr = test_split.get_attr(idx)
         result = pipeline.run_inference(data)
 
-        pred_labels = result['predict_labels'].astype(np.int32)
+        pred_labels = result['predict_labels'].astype(np.int32) + 1
         gt_labels = data['label'].astype(np.int32)
         
         # Collect for metrics
