@@ -27,3 +27,4 @@ kernels/
 **/.fuse*
 train_log/
 examples/
+docs/

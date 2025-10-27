@@ -100,13 +100,13 @@ def setup_visualizer(labels):
     return v
 
 
-def compute_and_display_metrics(all_gt_labels, all_pred_labels, semantic3d_labels, num_classes):
+def compute_and_display_metrics(all_gt_labels, all_pred_labels, semantic3d_label2names, num_classes):
     """Compute and display quantitative metrics (accuracy, IoU, confusion matrix).
     
     Args:
         all_gt_labels: List of ground truth label arrays (Semantic3D IDs: 0-8)
         all_pred_labels: List of prediction label arrays (model output: 0-7)
-        semantic3d_labels: Label ID to name mapping
+        semantic3d_label2names: Label ID to name mapping
         num_classes: Number of valid classes (excluding unlabeled)
     """
     all_gt = np.concatenate(all_gt_labels)
@@ -154,9 +154,9 @@ def compute_and_display_metrics(all_gt_labels, all_pred_labels, semantic3d_label
     log.info(f"{'Class Name':<30} {'Accuracy':>12} {'IoU':>12}")
     log.info("-"*70)
     # Only log.info valid classes (exclude unlabeled 0)
-    class_ids = [i for i in sorted(semantic3d_labels.keys()) if i != 0]
+    class_ids = [i for i in sorted(semantic3d_label2names.keys()) if i != 0]
     for idx, label_id in enumerate(class_ids):
-        label_name = semantic3d_labels[label_id]
+        label_name = semantic3d_label2names[label_id]
         acc_val = accuracies[idx] * 100 if not np.isnan(accuracies[idx]) else 0.0
         iou_val = ious[idx] * 100 if not np.isnan(ious[idx]) else 0.0
         log.info(f"{label_name:<30} {acc_val:>11.2f}% {iou_val:>11.2f}%")
@@ -183,15 +183,13 @@ def main():
     # Load configuration and required paths
     cfg = load_cfg(args.config)
     dataset_path, ckpt_path = require_paths(cfg, args.config)
-    log.info(f"Dataset path (from config): {dataset_path}")
-    log.info(f"Checkpoint (from config): {ckpt_path}")
 
     # Build components and load checkpoint
     model, dataset, pipeline = build_components(cfg, dataset_path)
     pipeline.load_ckpt(ckpt_path=ckpt_path)
     
     # Get label mapping
-    semantic3d_labels = dataset.label_to_names
+    semantic3d_label2names = dataset.label_to_names
 
     # Fetch num_classes from config (required)
     if isinstance(cfg.model, dict):
@@ -207,7 +205,7 @@ def main():
         )
     
     # Setup visualizer if needed
-    v = setup_visualizer(semantic3d_labels) if args.visualize else None
+    v = setup_visualizer(semantic3d_label2names) if args.visualize else None
     
     # Run inference
     test_split = dataset.get_split("test")
@@ -251,7 +249,7 @@ def main():
     
     # Compute and display metrics
     if args.metrics and len(all_gt_labels) > 0:
-        compute_and_display_metrics(all_gt_labels, all_pred_labels, semantic3d_labels, num_classes_cfg)
+        compute_and_display_metrics(all_gt_labels, all_pred_labels, semantic3d_label2names, num_classes_cfg)
     
     # Visualize results
     if v is not None and len(vis_points) > 0:
