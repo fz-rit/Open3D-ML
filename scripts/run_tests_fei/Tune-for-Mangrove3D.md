@@ -127,4 +127,7 @@ python inference_randlanet_semantic3d.py --config /home/fzhcis/mylab/Open3D-ML/m
 
 # Just inference (no metrics or visualization)
 python inference_randlanet_semantic3d.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_semantic3d.yml --indices 0
+
+# Inferece on local machine
+python scripts/run_tests_fei/inference_randlanet_semantic3d.py --config ml3d/configs/randlanet_semantic3d_p3.yml --indices 0 1 2 --metrics --visualize
 ```
