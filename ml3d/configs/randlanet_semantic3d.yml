@@ -16,7 +16,7 @@ dataset:
 model:
   name: RandLANet
   batcher: DefaultBatcher
-  ckpt_path: /home/fzhcis/mylab/Open3D-ML/scripts/run_tests_fei/logs/RandLANet_Semantic3D_torch/checkpoint/ckpt_00200.pth
+  ckpt_path: 
   num_neighbors: 16
   num_layers: 5
   num_points: 65536
