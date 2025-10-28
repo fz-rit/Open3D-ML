@@ -20,6 +20,12 @@ from ml3d.torch.modules.metrics import SemSegMetric
 import torch
 import numpy as np
 
+try:
+    import laspy
+    LASPY_AVAILABLE = True
+except ImportError:
+    LASPY_AVAILABLE = False
+
 log = logging.getLogger(__name__)
 
 ###########################
@@ -111,6 +117,8 @@ def compute_and_display_metrics(all_gt_labels, all_pred_labels, semantic3d_label
     """
     all_gt = np.concatenate(all_gt_labels)
     all_pred = np.concatenate(all_pred_labels)
+    log.info(f"Total label-0 points (unlabeled): {(all_gt == 0).sum()} / {all_gt.shape[0]}")
+    log.info(f"Predicted label 0 points: {(all_pred == 0).sum()} / {all_pred.shape[0]}")
 
     # Mask out ignored/unlabeled ground-truth (label 0)
     valid_mask = all_gt != 0
@@ -164,6 +172,88 @@ def compute_and_display_metrics(all_gt_labels, all_pred_labels, semantic3d_label
     log.info(f"\nConfusion Matrix:\n{confusion_mat}")
     log.info("="*70 + "\n")
 
+def compare_histograms(gt_labels, 
+                       pred_labels, 
+                       num_classes, 
+                       save_path=None):
+    import matplotlib.pyplot as plt
+
+    plt.figure(figsize=(10, 5))
+    bins = np.arange(num_classes + 1) - 0.5
+
+    plt.hist(gt_labels, bins=bins, alpha=0.5, label='Ground Truth', color='blue', density=True)
+    plt.hist(pred_labels, bins=bins, alpha=0.5, label='Predictions', color='orange', density=True)
+
+    plt.xticks(range(num_classes))
+    plt.xlabel('Class Label')
+    plt.ylabel('Normalized Frequency')
+    plt.title('Class Distribution: Ground Truth vs Predictions')
+    plt.legend()
+    plt.grid(True)
+    if save_path:
+        plt.savefig(save_path)
+    plt.show()
+
+
+def save_las_file(points, gt_labels, pred_labels, intensity, rgb, output_path):
+    """Save point cloud with GT and predicted labels to a .las file.
+    
+    Args:
+        points: Nx3 array of xyz coordinates
+        gt_labels: N array of ground truth labels (Semantic3D IDs: 0-8)
+        pred_labels: N array of predicted labels (model output 0-7, will be shifted to 1-8)
+        intensity: N array of intensity values
+        rgb: Nx3 array of RGB values
+        output_path: Path to save the .las file
+    """
+    if not LASPY_AVAILABLE:
+        log.warning(f"laspy not available. Cannot save {output_path}. Install with: pip install laspy")
+        return
+    
+    try:
+        # Create a new LAS file with point format 3 (includes RGB and classification)
+        header = laspy.LasHeader(point_format=3, version="1.2")
+        header.offsets = np.min(points, axis=0)
+        header.scales = np.array([0.001, 0.001, 0.001])
+        
+        las = laspy.LasData(header)
+        
+        # Set coordinates
+        las.x = points[:, 0]
+        las.y = points[:, 1]
+        las.z = points[:, 2]
+        
+        # Set intensity (scale to 0-65535 range if needed)
+        if intensity is not None:
+            intensity_scaled = np.clip(intensity, 0, 65535).astype(np.uint16)
+            las.intensity = intensity_scaled
+        
+        # Set RGB (laspy expects 0-65535 range)
+        if rgb is not None:
+            rgb_scaled = np.clip(rgb * 257, 0, 65535).astype(np.uint16)  # 0-255 -> 0-65535
+            las.red = rgb_scaled[:, 0]
+            las.green = rgb_scaled[:, 1]
+            las.blue = rgb_scaled[:, 2]
+        
+        # Set classification (ground truth)
+        # LAS classification is uint8, so we can store 0-255
+        las.classification = gt_labels.astype(np.uint8)
+        
+        # Store predictions in user_data field (uint8)
+        # Shift predictions from 0-7 to 1-8 to match Semantic3D IDs
+        pred_labels_shifted = (pred_labels + 1).astype(np.uint8)
+        las.user_data = pred_labels_shifted
+        
+        # Write to file
+        las.write(output_path)
+        log.info(f"Saved LAS file: {output_path}")
+        log.info(f"  - Points: {len(las.x)}")
+        log.info(f"  - Classification field: Ground truth labels (Semantic3D IDs 0-8)")
+        log.info(f"  - User_data field: Predicted labels (Semantic3D IDs 1-8)")
+        
+    except Exception as e:
+        log.error(f"Failed to save LAS file {output_path}: {e}")
+
 
 def main():
     parser = argparse.ArgumentParser(description='Run inference with RandLANet on Semantic3D')
@@ -178,6 +268,8 @@ def main():
                         help='Launch visualizer after inference')
     parser.add_argument('--metrics', action='store_true',
                         help='Compute and display quantitative metrics (accuracy, IoU, confusion matrix)')
+    parser.add_argument('--save-las', type=str, default=None,
+                        help='Directory to save results as .las files (requires laspy)')
     args = parser.parse_args()
     
     # Load configuration and required paths
@@ -207,6 +299,17 @@ def main():
     # Setup visualizer if needed
     v = setup_visualizer(semantic3d_label2names) if args.visualize else None
     
+    # Setup output directory for LAS files if requested
+    las_output_dir = None
+    if args.save_las:
+        if not LASPY_AVAILABLE:
+            log.error("laspy library not installed. Cannot save .las files.")
+            log.error("Install with: pip install laspy")
+            sys.exit(1)
+        las_output_dir = Path(args.save_las)
+        las_output_dir.mkdir(parents=True, exist_ok=True)
+        log.info(f"LAS files will be saved to: {las_output_dir}")
+    
     # Run inference
     test_split = dataset.get_split("test")
     total = len(test_split)
@@ -233,6 +336,19 @@ def main():
         pred_labels_raw = result['predict_labels'].astype(np.int32)
         gt_labels = data['label'].astype(np.int32)
         
+        # Save as LAS file if requested
+        if las_output_dir is not None:
+            las_filename = f"{attr['name']}_predictions.las"
+            las_path = las_output_dir / las_filename
+            save_las_file(
+                points=data['point'],
+                gt_labels=gt_labels,
+                pred_labels=pred_labels_raw,
+                intensity=data.get('intensity'),
+                rgb=data.get('feat'),
+                output_path=str(las_path)
+            )
+        
         # Collect for metrics (use raw 0-7 predictions)
         if args.metrics:
             all_gt_labels.append(gt_labels)
@@ -247,6 +363,15 @@ def main():
                 "pred": pred_labels_raw + 1,  # Display as Semantic3D IDs (1-8)
             })
     
+        log.info(f"[{k}/{len(indices)}] Sample: {attr['name']} | Points: {data['point'].shape[0]}")
+        log.info(f"Predicted labels unique: {np.unique(pred_labels_raw+1)}")
+        # compare_histograms(gt_labels, pred_labels_raw+1, num_classes_cfg)
+        compare_histograms(
+            gt_labels, 
+            pred_labels_raw + 1, 
+            num_classes_cfg,
+            save_path=las_output_dir / f"{attr['name']}_class_distribution.png"
+        )
     # Compute and display metrics
     if args.metrics and len(all_gt_labels) > 0:
         compute_and_display_metrics(all_gt_labels, all_pred_labels, semantic3d_label2names, num_classes_cfg)
