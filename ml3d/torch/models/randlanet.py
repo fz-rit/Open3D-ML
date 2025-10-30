@@ -126,22 +126,36 @@ class RandLANet(BaseModel):
             feat = None
         else:
             feat = np.array(data['feat'], dtype=np.float32)
+        
+        # Also handle intensity if present
+        if 'intensity' in data and data['intensity'] is not None:
+            intensity = np.array(data['intensity'], dtype=np.float32).reshape(-1, 1)
+        else:
+            intensity = None
 
         split = attr['split']
         data = dict()
 
-        if feat is None:
+        # Grid subsampling for features (RGB or intensity)
+        if feat is None and intensity is None:
             sub_points, sub_labels = DataProcessing.grid_subsampling(
                 points, labels=labels, grid_size=cfg.grid_size)
             sub_feat = None
-        else:
+            sub_intensity = None
+        elif feat is not None:
             sub_points, sub_feat, sub_labels = DataProcessing.grid_subsampling(
                 points, features=feat, labels=labels, grid_size=cfg.grid_size)
+            sub_intensity = None
+        elif intensity is not None:
+            sub_points, sub_intensity, sub_labels = DataProcessing.grid_subsampling(
+                points, features=intensity, labels=labels, grid_size=cfg.grid_size)
+            sub_feat = None
 
         search_tree = KDTree(sub_points)
 
         data['point'] = sub_points
         data['feat'] = sub_feat
+        data['intensity'] = sub_intensity
         data['label'] = sub_labels
         data['search_tree'] = search_tree
 
@@ -169,7 +183,26 @@ class RandLANet(BaseModel):
 
         pc = data['point'].copy()
         label = data['label'].copy()
-        feat = data['feat'].copy() if data['feat'] is not None else None
+        
+        # Automatically select features based on in_channels configuration
+        # in_channels = 3: XYZ only (no additional features)
+        # in_channels = 4: XYZ + intensity (1 channel)
+        # in_channels = 6: XYZ + RGB (3 channels)
+        if cfg.in_channels == 4:
+            # Use intensity if available, otherwise fall back to RGB or None
+            if 'intensity' in data and data['intensity'] is not None:
+                feat = data['intensity'].copy().reshape(-1, 1)
+            elif data.get('feat') is not None:
+                feat = data['feat'].copy()
+            else:
+                feat = None
+        elif cfg.in_channels == 6:
+            # Use RGB features
+            feat = data['feat'].copy() if data['feat'] is not None else None
+        else:
+            # in_channels == 3: no additional features
+            feat = None
+        
         tree = data['search_tree']
 
         pc, selected_idxs, center_point = self.trans_point_sampler(

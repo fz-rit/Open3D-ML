@@ -2,5 +2,6 @@
 
 from .semantic_segmentation import SemanticSegmentation
 from .object_detection import ObjectDetection
+from .ssl_rotation import SSLRotation
 
-__all__ = ['SemanticSegmentation', 'ObjectDetection']
+__all__ = ['SemanticSegmentation', 'ObjectDetection', 'SSLRotation']
