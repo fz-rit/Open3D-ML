@@ -382,7 +382,7 @@ class SemanticSegmentation(BasePipeline):
 
         self.optimizer, self.scheduler = model.get_optimizer(cfg)
 
-        is_resume = model.cfg.get('is_resume', True)
+        is_resume = model.cfg.get('is_resume', False)
         start_epoch = self.load_ckpt(model.cfg.ckpt_path, is_resume=is_resume)
 
         dataset_name = dataset.name if dataset is not None else ''
