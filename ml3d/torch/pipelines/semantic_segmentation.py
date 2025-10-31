@@ -703,12 +703,13 @@ class SemanticSegmentation(BasePipeline):
         """Save a checkpoint at the passed epoch."""
         path_ckpt = join(self.cfg.logs_dir, 'checkpoint')
         make_dir(path_ckpt)
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         torch.save(
             dict(epoch=epoch,
                  model_state_dict=self.model.state_dict(),
                  optimizer_state_dict=self.optimizer.state_dict(),
                  scheduler_state_dict=self.scheduler.state_dict()),
-            join(path_ckpt, f'ckpt_{epoch:05d}.pth'))
+            join(path_ckpt, f'ckpt_{timestamp}_{epoch:05d}.pth'))
         log.info(f'Epoch {epoch:3d}: save ckpt to {path_ckpt:s}')
 
     def save_config(self, writer):
