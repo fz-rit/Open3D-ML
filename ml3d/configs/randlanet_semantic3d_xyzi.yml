@@ -52,6 +52,7 @@ pipeline:
   max_epoch: 400
   save_ckpt_freq: 50
   scheduler_gamma: 0.995
+  is_resume: false
   test_batch_size: 4
   train_sum_dir: train_log
   val_batch_size: 4
