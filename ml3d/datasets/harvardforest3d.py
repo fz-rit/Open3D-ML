@@ -230,7 +230,6 @@ class HarvardForest3DSplit(BaseDatasetSplit):
 
     def get_data(self, idx):
         las_path = Path(self.path_list[idx])
-        log.debug(f"get_data called for {las_path}")
 
         # Read LAS file
         try:
@@ -244,6 +243,7 @@ class HarvardForest3DSplit(BaseDatasetSplit):
         # Build feature vector
         feat_list = []
 
+
         # Intensity
         if self.dataset.use_intensity:
             try:
@@ -251,9 +251,13 @@ class HarvardForest3DSplit(BaseDatasetSplit):
                 # Normalize intensity to [0, 1] range (typical LAS intensity is 0-65535)
                 intensity = intensity / 65535.0
                 feat_list.append(intensity.reshape(-1, 1))
+                has_intensity = True
             except AttributeError:
                 log.warning(f"Intensity not found in {las_path}, using zeros.")
                 feat_list.append(np.zeros((points.shape[0], 1), dtype=np.float32))
+                has_intensity = True
+        else:
+            has_intensity = False
         
         # RGB colors
         if self.dataset.use_rgb:
@@ -268,25 +272,28 @@ class HarvardForest3DSplit(BaseDatasetSplit):
                 log.warning(f"RGB not found in {las_path}, using zeros.")
                 feat_list.append(np.zeros((points.shape[0], 3), dtype=np.float32))
 
-        # If no features selected, use ones
+        # Concatenate features or set to None as placeholder
+        # None means the model will use XYZ only (in_channels=3)
+        # feat shape: (N, 1) for intensity, (N, 3) for RGB, (N, 4) for both
+        # Keep feat=None as placeholder for future RGB support
         if len(feat_list) == 0:
-            feat = np.ones((points.shape[0], 1), dtype=np.float32)
+            feat = None  # Placeholder - will use XYZ only (in_channels=3)
+            intensity = None
         else:
             feat = np.concatenate(feat_list, axis=1)
+            # Extract intensity for separate access if it was included
+            if has_intensity:
+                intensity = feat[:, 0]
+            else:
+                intensity = None
 
         # Dummy labels (0-based, all zeros for SSL)
         labels = np.zeros((points.shape[0],), dtype=np.int32)
 
-        # For intensity compatibility with models expecting separate intensity
-        if self.dataset.use_intensity and len(feat_list) > 0:
-            intensity = feat[:, 0]
-        else:
-            intensity = np.ones((points.shape[0],), dtype=np.float32)
-
         data = {
             'point': points,
-            'feat': feat,
-            'intensity': intensity,
+            'feat': feat,  # None or (N, C) where C depends on use_intensity/use_rgb
+            'intensity': intensity,  # Separate intensity channel for convenience
             'label': labels,
         }
         return data

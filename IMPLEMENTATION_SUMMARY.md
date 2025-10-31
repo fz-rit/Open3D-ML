@@ -108,9 +108,8 @@ model:
 ### Step 3: Train
 
 ```bash
-python scripts/train_harvardforest_ssl.py \
+python scripts/run_tests_fei/train_harvardforest_ssl.py \
   --cfg ml3d/configs/harvardforest3d_ssl.yml \
-  --device cuda
 ```
 
 ### Step 4: Monitor

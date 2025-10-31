@@ -1,0 +1,51 @@
+
+Train Epoch 1:   0%|          | 0/14 [00:00<?, ?it/s]
+Train Epoch 1:   0%|          | 0/14 [00:02<?, ?it/s]
+Traceback (most recent call last):
+  File "/home/fzhcis/mylab/Open3D-ML/scripts/run_tests_fei/train_harvardforest_ssl.py", line 108, in <module>
+    main()
+  File "/home/fzhcis/mylab/Open3D-ML/scripts/run_tests_fei/train_harvardforest_ssl.py", line 102, in main
+    pipeline.run_train()
+  File "/home/fzhcis/mylab/Open3D-ML/ml3d/torch/pipelines/ssl_rotation.py", line 307, in run_train
+    train_loss, train_acc = self._train_epoch(
+                            ^^^^^^^^^^^^^^^^^^
+  File "/home/fzhcis/mylab/Open3D-ML/ml3d/torch/pipelines/ssl_rotation.py", line 472, in _train_epoch
+    logits = model(inputs['data'])
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/fzhcis/miniconda3/envs/pcd_seg_open3d_env/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/fzhcis/miniconda3/envs/pcd_seg_open3d_env/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/fzhcis/mylab/Open3D-ML/ml3d/torch/models/randlanet_ssl.py", line 253, in forward
+    feat = self.fc0(feat).transpose(-2, -1).unsqueeze(-1)  # (B, dim_feature, N, 1)
+           ^^^^^^^^^^^^^^
+  File "/home/fzhcis/miniconda3/envs/pcd_seg_open3d_env/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/fzhcis/miniconda3/envs/pcd_seg_open3d_env/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/fzhcis/miniconda3/envs/pcd_seg_open3d_env/lib/python3.11/site-packages/torch/nn/modules/linear.py", line 116, in forward
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: mat1 and mat2 shapes cannot be multiplied (262144x4 and 3x8)
+
+ERROR conda.cli.main_run:execute(125): `conda run python scripts/run_tests_fei/train_harvardforest_ssl.py --cfg ml3d/configs/harvardforest3d_ssl.yml` failed. (See above for error)
+============================================================
+HarvardForest3D SSL Training
+============================================================
+Config: ml3d/configs/harvardforest3d_ssl.yml
+Device: cuda
+Dataset: HarvardForest3D
+Model: RandLANetSSL
+Pipeline: SSLRotation
+============================================================
+Train files: 56, Val files: 6
+
+Starting training...
+
+
+Error: mat1 and mat2 shapes cannot be multiplied (262144x4 and 3x8)
+

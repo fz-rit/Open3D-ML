@@ -367,5 +367,28 @@ class RandLANetSSL(BaseModel):
 
         return processed_data
 
+    def transform(self, data, attr, min_possibility_idx=None):
+        """Transform data for SSL task (handled by pipeline)."""
+        # This is handled by the SSLRotation pipeline
+        # Just return the data as-is since rotation augmentation happens in pipeline
+        raise NotImplementedError("transform() should not be called directly for SSL models. Use pipeline's transform.")
+
+    def get_loss(self, results, inputs, device):
+        """Compute SSL loss (handled by pipeline)."""
+        # This is computed in the pipeline
+        raise NotImplementedError("get_loss() is handled by SSLRotation pipeline")
+
+    def inference_begin(self, data):
+        """Prepare for inference (not used in SSL training)."""
+        pass
+
+    def inference_preprocess(self):
+        """Preprocess during inference (not used in SSL training)."""
+        return None
+
+    def inference_end(self, inputs, results):
+        """Finalize inference results (not used in SSL training)."""
+        return results
+
 
 MODEL._register_module(RandLANetSSL)

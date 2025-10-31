@@ -152,6 +152,40 @@ class SSLRotation(BasePipeline):
         
         return rotated_points
 
+    def _collate_fn(self, batch):
+        """Custom collate function that handles rotation labels properly.
+        
+        Args:
+            batch: List of {'data': inputs_dict, 'attr': attr_dict}
+            
+        Returns:
+            Batched data with preserved attr list
+        """
+        from ..dataloaders import DefaultBatcher
+        
+        # Separate data and attr
+        data_list = [item['data'] for item in batch]
+        attr_list = [item['attr'] for item in batch]
+        
+        # Use default batcher for data only
+        batcher = DefaultBatcher()
+        batched_data = batcher.collate_fn(data_list)
+        
+        # Return with attr list preserved
+        return {'data': batched_data, 'attr': attr_list}
+
+    def get_batcher(self, device, split='training'):
+        """Get the batcher to be used based on the device and split."""
+        batcher_name = getattr(self.model.cfg, 'batcher', 'DefaultBatcher')
+
+        if batcher_name == 'DefaultBatcher':
+            batcher = DefaultBatcher()
+        elif batcher_name == 'ConcatBatcher':
+            batcher = ConcatBatcher(device, self.model.cfg.name)
+        else:
+            batcher = DefaultBatcher()  # Fallback
+        return batcher
+
     def run_train(self):
         """Run SSL rotation training."""
         torch.manual_seed(self.rng.integers(np.iinfo(np.int32).max))
@@ -196,7 +230,7 @@ class SSLRotation(BasePipeline):
             train_split,
             batch_size=cfg.batch_size,
             sampler=get_sampler(train_sampler),
-            collate_fn=batcher.collate_fn,
+            collate_fn=self._collate_fn,  # Use custom collate function
             num_workers=cfg.get('num_workers', 0),
             pin_memory=True
         )
@@ -214,7 +248,7 @@ class SSLRotation(BasePipeline):
             val_split,
             batch_size=cfg.val_batch_size,
             sampler=get_sampler(val_sampler),
-            collate_fn=batcher.collate_fn,
+            collate_fn=self._collate_fn,  # Use custom collate function
             num_workers=cfg.get('num_workers', 0),
             pin_memory=True
         )
@@ -332,22 +366,82 @@ class SSLRotation(BasePipeline):
         log.info(f"Best Validation Accuracy: {best_val_acc:.2f}%")
         log.info("="*50)
 
-    def _ssl_transform(self, data):
-        """Apply SSL rotation augmentation to preprocessed data.
+    def _ssl_transform(self, data, attr):
+        """Apply SSL rotation augmentation AND point sampling to preprocessed data.
         
-        This is called after model.preprocess() and before batching.
+        This combines:
+        1. Rotation augmentation for SSL task
+        2. Point sampling and KNN (from RandLANet transform logic)
+        
+        Args:
+            data: Preprocessed data dict with 'point', 'feat', 'label', 'search_tree'
+            attr: Attribute dict
+            
+        Returns:
+            inputs: Dict ready for model forward pass
         """
+        from ...datasets.utils import DataProcessing
+        import torch
+        
+        cfg = self.model.cfg
+        
         # Sample a random rotation class
         rotation_class = self.rng.integers(0, self.num_rotation_classes)
         
-        # Apply rotation to points
-        if 'point' in data and data['point'] is not None:
-            data['point'] = self.apply_rotation(data['point'], rotation_class)
+        # Apply rotation to points BEFORE sampling
+        pc = data['point'].copy()
+        pc = self.apply_rotation(pc, rotation_class)
         
-        # Store rotation label
-        data['rotation_label'] = rotation_class
+        # Get features
+        feat = data['feat'].copy() if data['feat'] is not None else None
+        tree = data['search_tree']
         
-        return data
+        # Sample points (from RandLANet transform logic)
+        if pc.shape[0] > cfg.num_points:
+            selected_idxs = self.rng.choice(pc.shape[0], cfg.num_points, replace=False)
+        else:
+            selected_idxs = np.arange(pc.shape[0])
+        
+        pc = pc[selected_idxs]
+        if feat is not None:
+            feat = feat[selected_idxs]
+        
+        # Concatenate features with coordinates
+        if feat is None:
+            feat = pc.copy()
+        else:
+            feat = np.concatenate([pc, feat], axis=1)
+        
+        # Build inputs for RandLANet forward pass
+        input_points = []
+        input_neighbors = []
+        input_pools = []
+        
+        for i in range(cfg.num_layers):
+            # KNN search
+            neighbour_idx = DataProcessing.knn_search(pc, pc, cfg.num_neighbors)
+            
+            # Subsampling
+            sub_points = pc[:pc.shape[0] // cfg.sub_sampling_ratio[i], :]
+            pool_i = neighbour_idx[:pc.shape[0] // cfg.sub_sampling_ratio[i], :]
+            
+            input_points.append(pc)
+            input_neighbors.append(neighbour_idx.astype(np.int64))
+            input_pools.append(pool_i.astype(np.int64))
+            pc = sub_points
+        
+        # Prepare inputs dict
+        inputs = {
+            'coords': input_points,
+            'neighbor_indices': input_neighbors,
+            'sub_idx': input_pools,
+            'features': feat
+        }
+        
+        # Store rotation label in attr (preserved through batching)
+        attr['rotation_label'] = rotation_class
+        
+        return inputs
 
     def _train_epoch(self, model, train_loader, criterion, optimizer, device, epoch):
         """Train for one epoch."""
@@ -366,9 +460,9 @@ class SSLRotation(BasePipeline):
                     if torch.is_tensor(inputs['data'][key]):
                         inputs['data'][key] = inputs['data'][key].to(device)
             
-            # Extract rotation labels
+            # Extract rotation labels from attr list
             rotation_labels = torch.tensor(
-                [inputs['attr'][i]['rotation_label'] for i in range(len(inputs['attr']))],
+                [attr_item['rotation_label'] for attr_item in inputs['attr']],
                 dtype=torch.long,
                 device=device
             )
@@ -423,9 +517,9 @@ class SSLRotation(BasePipeline):
                         if torch.is_tensor(inputs['data'][key]):
                             inputs['data'][key] = inputs['data'][key].to(device)
                 
-                # Extract rotation labels
+                # Extract rotation labels from attr list
                 rotation_labels = torch.tensor(
-                    [inputs['attr'][i]['rotation_label'] for i in range(len(inputs['attr']))],
+                    [attr_item['rotation_label'] for attr_item in inputs['attr']],
                     dtype=torch.long,
                     device=device
                 )
@@ -505,6 +599,78 @@ class SSLRotation(BasePipeline):
         log.info(f"  Test Loss: {test_loss:.4f}")
         log.info(f"  Test Accuracy: {test_acc:.2f}%")
         log.info("="*50)
+
+    def run_inference(self, data):
+        """Run inference on a single data sample.
+        
+        Args:
+            data: A dict with 'point' and optionally 'feat' keys.
+            
+        Returns:
+            Predicted rotation class (0, 1, 2, or 3).
+        """
+        model = self.model
+        device = self.device
+        
+        model.to(device)
+        model.eval()
+        
+        # Preprocess
+        attr = {'split': 'test'}
+        processed_data = model.preprocess(data, attr)
+        
+        # Transform (apply model's transform, not SSL rotation augmentation)
+        from ...datasets.utils import DataProcessing
+        
+        pc = processed_data['point'].copy()
+        feat = processed_data['feat'].copy() if processed_data['feat'] is not None else None
+        tree = processed_data['search_tree']
+        
+        # Point sampling
+        if pc.shape[0] > self.cfg.num_points:
+            selected_idxs = np.random.choice(pc.shape[0], self.cfg.num_points, replace=False)
+        else:
+            selected_idxs = np.arange(pc.shape[0])
+        
+        pc = pc[selected_idxs]
+        if feat is not None:
+            feat = feat[selected_idxs]
+        
+        # Concatenate features
+        if feat is None:
+            feat = pc.copy()
+        else:
+            feat = np.concatenate([pc, feat], axis=1)
+        
+        # Prepare inputs (similar to transform but without rotation)
+        input_points = []
+        input_neighbors = []
+        input_pools = []
+        
+        for i in range(model.cfg.num_layers):
+            neighbour_idx = DataProcessing.knn_search(pc, pc, model.cfg.num_neighbors)
+            sub_points = pc[:pc.shape[0] // model.cfg.sub_sampling_ratio[i], :]
+            pool_i = neighbour_idx[:pc.shape[0] // model.cfg.sub_sampling_ratio[i], :]
+            
+            input_points.append(pc)
+            input_neighbors.append(neighbour_idx.astype(np.int64))
+            input_pools.append(pool_i.astype(np.int64))
+            pc = sub_points
+        
+        # Convert to tensors and add batch dimension
+        inputs = {
+            'coords': [torch.from_numpy(p).unsqueeze(0).float().to(device) for p in input_points],
+            'neighbor_indices': [torch.from_numpy(n).unsqueeze(0).long().to(device) for n in input_neighbors],
+            'sub_idx': [torch.from_numpy(s).unsqueeze(0).long().to(device) for s in input_pools],
+            'features': torch.from_numpy(feat).unsqueeze(0).float().to(device)
+        }
+        
+        # Forward pass
+        with torch.no_grad():
+            logits = model(inputs)
+            pred_class = torch.argmax(logits, dim=1).cpu().item()
+        
+        return pred_class
 
 
 PIPELINE._register_module(SSLRotation)

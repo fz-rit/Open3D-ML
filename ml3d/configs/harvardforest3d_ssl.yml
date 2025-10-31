@@ -4,11 +4,11 @@ dataset:
   cache_dir: ./logs/cache_harvardforest/
   num_points: 65536
   test_result_folder: ./test
-  use_cache: true
+  use_cache: false
   val_split_ratio: 0.1
   val_split_seed: 42
   test_split_ratio: 0.0  # No separate test set
-  use_intensity: true
+  use_intensity: false  # Set to true to use intensity (in_channels: 4)
   use_rgb: false  # Set to true if LAS files have RGB
   class_weights: null  # Not used for SSL
   ignored_label_inds: []
@@ -19,7 +19,7 @@ model:
   name: RandLANetSSL
   batcher: DefaultBatcher
   # Path to pretrained RandLANet encoder from Semantic3D
-  pretrained_encoder_path: /home/fzhcis/mylab/data/semantic3d/open3d_randlanet/test_1027/ckpt_00400.pth
+  pretrained_encoder_path: /home/fzhcis/mylab/data/semantic3d/open3d_randlanet/test_1027/randlanet_semantic3d_xyz_ckpt_2025-10-30_22-15-32_00400.pth
   load_encoder_strict: false
   freeze_encoder_epochs: 5  # Freeze encoder for first 5 epochs (warmup)
   
@@ -34,7 +34,7 @@ model:
   num_layers: 5
   num_points: 65536
   sub_sampling_ratio: [4, 4, 4, 4, 2]
-  in_channels: 4  # XYZ + intensity (adjust if using RGB: 7)
+  in_channels: 3
   dim_features: 8
   dim_output: [16, 64, 128, 256, 512]
   grid_size: 0.06
@@ -68,10 +68,10 @@ pipeline:
   batch_size: 4  # Adjust based on GPU memory
   val_batch_size: 4
   test_batch_size: 4
-  num_workers: 4  # Parallel data loading
+  num_workers: 0  # Parallel data loading
   max_epoch: 50  # Start with 50, increase if needed
   save_ckpt_freq: 20
-  
+  is_resume: false
   # SSL rotation settings
   num_rotation_classes: 4
   rotation_axis: z  # Rotate around vertical axis (natural for forest scenes)

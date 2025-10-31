@@ -80,7 +80,9 @@ def main():
     
     # Initialize dataset
     dataset_class = getattr(datasets, cfg.dataset.name)
-    dataset = dataset_class(cfg.dataset)
+    # Extract dataset_path and pass remaining config as kwargs
+    dataset_kwargs = {k: v for k, v in cfg.dataset.items() if k != 'dataset_path'}
+    dataset = dataset_class(cfg.dataset.dataset_path, **dataset_kwargs)
     print(f"Train files: {len(dataset.train_files)}, Val files: {len(dataset.val_files)}")
     
     # Initialize model
