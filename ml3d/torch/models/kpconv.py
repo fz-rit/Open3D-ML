@@ -385,9 +385,7 @@ class KPFCNN(BaseModel):
         data['point'] = sub_points
         data['feat'] = sub_feat
         data['label'] = sub_labels
-        # Don't store search_tree - KDTree cannot be pickled for multiprocessing
-        # It will be rebuilt in transform() method
-        # data['search_tree'] = search_tree
+        data['search_tree'] = search_tree
 
         if split in ["test", "testing", "validation", "valid"]:
             proj_inds = np.squeeze(
@@ -402,8 +400,7 @@ class KPFCNN(BaseModel):
         points = data['point']
         sem_labels = data['label']
         feat = data['feat']
-        # Rebuild KDTree from points (not stored in preprocess to avoid pickling issues)
-        search_tree = KDTree(points)
+        search_tree = data['search_tree']
 
         dim_points = points.shape[1]
         if feat is None:
@@ -541,8 +538,7 @@ class KPFCNN(BaseModel):
         self.inference_ori_data = data
         self.inference_data = self.preprocess(data, attr)
         self.inference_proj_inds = self.inference_data['proj_inds']
-        # Rebuild search_tree from points (not stored in preprocess)
-        num_points = self.inference_data['point'].shape[0]
+        num_points = self.inference_data['search_tree'].data.shape[0]
 
         self.possibility = np.random.rand(num_points) * 1e-3
         self.test_probs = np.zeros(shape=[num_points, self.cfg.num_classes],
