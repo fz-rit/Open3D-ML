@@ -78,7 +78,8 @@ pipeline:
   lr_decays: 0.98477
   deform_lr_factor: 0.1
   main_log_dir: ./logs
-  num_workers: 8
+  num_workers: 0
+  pin_memory: false
   max_epoch: 200
   save_ckpt_freq: 50
   scheduler_gamma: 0.95
