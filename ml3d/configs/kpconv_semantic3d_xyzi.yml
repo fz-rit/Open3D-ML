@@ -1,6 +1,6 @@
 dataset:
   name: Semantic3D
-  dataset_path: # path/to/your/dataset
+  dataset_path: /home/fzhcis/data/semantic3d_full/Semantic3D
   cache_dir: ./logs/cache_kpconv_semantic3d/
   class_weights: [5181602, 5012952, 6830086, 1311528, 10476365, 946982, 334860, 269353]
   ignored_label_inds:
