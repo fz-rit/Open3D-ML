@@ -1,7 +1,6 @@
 """Networks for torch."""
 
 from .randlanet import RandLANet
-from .randlanet_ssl import RandLANetSSL
 from .kpconv import KPFCNN
 from .point_pillars import PointPillars
 from .sparseconvnet import SparseConvUnet
@@ -10,7 +9,7 @@ from .point_transformer import PointTransformer
 from .pvcnn import PVCNN
 
 __all__ = [
-    'RandLANet', 'RandLANetSSL', 'KPFCNN', 'PointPillars', 'PointRCNN', 'SparseConvUnet',
+    'RandLANet', 'KPFCNN', 'PointPillars', 'PointRCNN', 'SparseConvUnet',
     'PointTransformer', 'PVCNN'
 ]
 

@@ -54,6 +54,11 @@ class HarvardForest3D(BaseDataset):
         test_result_folder='./test',
         use_intensity=True,
         use_rgb=False,
+        # Local patch sampling parameters (for patch-based SSL)
+        use_local_patches=False,
+        patch_radius=2.5,
+        patches_per_scene=8,
+        patch_min_points=1024,
         **kwargs,
     ):
         """Initialize HarvardForest3D dataset configuration.
@@ -91,6 +96,12 @@ class HarvardForest3D(BaseDataset):
         self.test_split_ratio = test_split_ratio
         self.use_intensity = use_intensity
         self.use_rgb = use_rgb
+        
+        # Local patch sampling parameters
+        self.use_local_patches = use_local_patches
+        self.patch_radius = patch_radius
+        self.patches_per_scene = patches_per_scene
+        self.patch_min_points = patch_min_points
 
         # No semantic classes for SSL tasks
         self.label_to_names = {0: 'unlabeled'}
@@ -222,14 +233,54 @@ class HarvardForest3DSplit(BaseDatasetSplit):
     """Split wrapper for HarvardForest3D."""
 
     def __init__(self, dataset, split='training'):
+        # Set local patch parameters BEFORE calling super().__init__
+        # because super().__init__ calls __len__ which needs these attributes
+        self.use_local_patches = getattr(dataset, 'use_local_patches', False)
+        self.patch_radius = getattr(dataset, 'patch_radius', 2.5)
+        self.patches_per_scene = getattr(dataset, 'patches_per_scene', 8)
+        self.patch_min_points = getattr(dataset, 'patch_min_points', 1024)
+        
         super().__init__(dataset, split=split)
         log.info(f"Found {len(self.path_list)} LAS files for {split}")
+        
+        if self.use_local_patches:
+            log.info(f"Using LOCAL PATCH sampling:")
+            log.info(f"  - Patch radius: {self.patch_radius}m")
+            log.info(f"  - Patches per scene: {self.patches_per_scene}")
+            log.info(f"  - Min points per patch: {self.patch_min_points}")
+            log.info(f"  - Total patches: {len(self.path_list)} scenes × {self.patches_per_scene} = {len(self.path_list) * self.patches_per_scene}")
 
     def __len__(self):
+        # If using local patches, multiply by patches_per_scene
+        if self.use_local_patches:
+            return len(self.path_list) * self.patches_per_scene
         return len(self.path_list)
 
     def get_data(self, idx):
-        las_path = Path(self.path_list[idx])
+        """Get data - either full scene or local patch."""
+        
+        if self.use_local_patches:
+            # Map flattened idx to (scene_idx, patch_idx)
+            scene_idx = idx // self.patches_per_scene
+            patch_idx = idx % self.patches_per_scene
+            
+            # Load full scene first
+            scene_data = self._load_full_scene(scene_idx)
+            
+            # Extract local patch
+            patch_data = self._extract_local_patch(
+                scene_data, 
+                patch_idx,
+                max_attempts=10
+            )
+            return patch_data
+        else:
+            # Original: return full scene
+            return self._load_full_scene(idx)
+    
+    def _load_full_scene(self, scene_idx):
+        """Load full LAS scene."""
+        las_path = Path(self.path_list[scene_idx])
 
         # Read LAS file
         try:
@@ -297,10 +348,89 @@ class HarvardForest3DSplit(BaseDatasetSplit):
             'label': labels,
         }
         return data
+    
+    def _extract_local_patch(self, scene_data, patch_idx, max_attempts=10):
+        """
+        Extract a local spherical patch from the full scene.
+        
+        Args:
+            scene_data: Full scene data dict
+            patch_idx: Patch index (for reproducibility with seeding)
+            max_attempts: Max attempts to find valid patch
+            
+        Returns:
+            patch_data: Dict with local patch points/features
+        """
+        points = scene_data['point']
+        feat = scene_data['feat']
+        
+        # Seed RNG for reproducibility (different per patch)
+        rng = np.random.RandomState(seed=patch_idx)
+        
+        for attempt in range(max_attempts):
+            # Random center point
+            center_idx = rng.randint(0, points.shape[0])
+            center = points[center_idx]
+            
+            # Extract points within radius
+            distances = np.linalg.norm(points - center, axis=1)
+            mask = distances <= self.patch_radius
+            
+            if np.sum(mask) >= self.patch_min_points:
+                # Valid patch found
+                patch_points = points[mask].copy()
+                patch_feat = feat[mask].copy() if feat is not None else None
+                
+                # Center the patch at origin
+                patch_points -= center
+                
+                # Create patch data
+                patch_labels = np.zeros((patch_points.shape[0],), dtype=np.int32)
+                
+                return {
+                    'point': patch_points,
+                    'feat': patch_feat,
+                    'intensity': patch_feat[:, 0] if patch_feat is not None and patch_feat.shape[1] >= 1 else None,
+                    'label': patch_labels,
+                    'patch_center': center,  # Store for debugging
+                }
+        
+        # Fallback: if no valid patch found, use center region
+        center = np.mean(points, axis=0)
+        distances = np.linalg.norm(points - center, axis=1)
+        mask = distances <= self.patch_radius
+        
+        # Take closest patch_min_points if still not enough
+        if np.sum(mask) < self.patch_min_points:
+            closest_idxs = np.argsort(distances)[:self.patch_min_points]
+            mask = np.zeros(points.shape[0], dtype=bool)
+            mask[closest_idxs] = True
+        
+        patch_points = points[mask].copy()
+        patch_feat = feat[mask].copy() if feat is not None else None
+        patch_points -= center
+        
+        patch_labels = np.zeros((patch_points.shape[0],), dtype=np.int32)
+        
+        return {
+            'point': patch_points,
+            'feat': patch_feat,
+            'intensity': patch_feat[:, 0] if patch_feat is not None and patch_feat.shape[1] >= 1 else None,
+            'label': patch_labels,
+            'patch_center': center,
+        }
 
     def get_attr(self, idx):
-        las_path = Path(self.path_list[idx])
-        name = las_path.stem
+        if self.use_local_patches:
+            # Map to scene idx
+            scene_idx = idx // self.patches_per_scene
+            patch_idx = idx % self.patches_per_scene
+            las_path = Path(self.path_list[scene_idx])
+            name = f"{las_path.stem}_patch{patch_idx:02d}"
+        else:
+            las_path = Path(self.path_list[idx])
+            name = las_path.stem
+        
         split = self.split
         attr = {'idx': idx, 'name': name, 'path': str(las_path), 'split': split}
         return attr
