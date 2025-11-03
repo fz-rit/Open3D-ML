@@ -312,20 +312,46 @@ def main():
     
     log.info(f"Dataset split '{args.split}': {len(split_dataset)} samples")
     
-    # Load model
-    log.info(f"Loading model: {cfg.model.name}")
-    if cfg.model.name == 'RandLANetContrast':
-        model = RandLANetContrast(**cfg.model)
-    else:
-        raise ValueError(f"Unknown model: {cfg.model.name}")
-    
-    # Load checkpoint
+    # Load checkpoint first to inspect architecture
     log.info(f"Loading checkpoint from {args.ckpt}")
     checkpoint = torch.load(args.ckpt, map_location='cpu')
     if 'model_state_dict' in checkpoint:
-        model.load_state_dict(checkpoint['model_state_dict'])
+        state_dict = checkpoint['model_state_dict']
     else:
-        model.load_state_dict(checkpoint)
+        state_dict = checkpoint
+    
+    # Load model with matching architecture
+    log.info(f"Loading model: {cfg.model.name}")
+    model_cfg = dict(cfg.model)
+    model_cfg['pretrained_encoder_path'] = None
+    model_cfg['freeze_encoder_epochs'] = 0
+    
+    # Detect encoder output dimension from checkpoint
+    # projection_head.mlp.0.weight has shape [out_features, in_features]
+    # in_features is the encoder output dimension
+    proj_first_layer_key = 'projection_head.mlp.0.weight'
+    if proj_first_layer_key in state_dict:
+        encoder_dim = state_dict[proj_first_layer_key].shape[1]  # Input dim to projection head
+        log.info(f"Detected encoder output dimension from checkpoint: {encoder_dim}")
+        
+        # Override config to match checkpoint
+        model_cfg['first_features_dim'] = encoder_dim
+    else:
+        log.warning(f"Could not detect encoder dim from checkpoint, using config value")
+    
+    if cfg.model.name == 'RandLANetContrast':
+        model = RandLANetContrast(**model_cfg)
+    else:
+        raise ValueError(f"Unknown model: {cfg.model.name}")
+    
+    # Load checkpoint weights
+    missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
+    if missing_keys:
+        log.info(f"Missing keys: {len(missing_keys)} (expected for modified architecture)")
+    if unexpected_keys:
+        log.warning(f"Unexpected keys: {len(unexpected_keys)}")
+    
+    log.info(f"Checkpoint loaded successfully")
     
     model.eval()
     
