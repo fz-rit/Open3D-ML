@@ -1,0 +1,102 @@
+# Configuration for RandLANet Contrastive Learning on HarvardForest3D
+# PointContrast-style self-supervised pretraining
+# Use this to pretrain on unlabeled HarvardForest data with Semantic3D initialization
+
+dataset:
+  name: HarvardForest3DContrastive
+  dataset_path: /home/fzhcis/mylab/data/HarvardForest  # UPDATE THIS PATH
+  cache_dir: ./logs/cache_harvardforest_contrast/
+  num_points: 8192  # Points per cloud sample
+  test_result_folder: ./test
+  use_cache: false
+  val_split_ratio: 0.1
+  val_split_seed: 42
+  test_split_ratio: 0.0  # No test set for SSL
+  use_intensity: false  # Set to true if using intensity features
+  use_rgb: false  # Set to true if using RGB features
+  
+  # Augmentation parameters for contrastive learning
+  augment_rotation_range: 360  # Full rotation around Z-axis (0-360 degrees)
+  augment_scale_min: 0.8  # Minimum scaling factor
+  augment_scale_max: 1.2  # Maximum scaling factor
+  augment_jitter_std: 0.01  # Gaussian noise std deviation
+  augment_dropout_ratio: 0.2  # Randomly drop 20% of points
+  augment_translate_range: 0.5  # Random translation ±0.5m
+  
+  # Correspondence parameters
+  correspondence_threshold: 0.05  # 5cm threshold for matching
+  min_correspondences: 512  # Minimum correspondences per pair
+
+model:
+  name: RandLANetContrast
+  batcher: DefaultBatcher
+  
+  # Path to pretrained RandLANet encoder from Semantic3D
+  # This provides a strong initialization for the encoder
+  pretrained_encoder_path: /home/fzhcis/mylab/data/semantic3d/open3d_randlanet/test_1027/randlanet_semantic3d_xyz_ckpt_2025-10-30_22-15-32_00400.pth
+  load_encoder_strict: false  # Allow partial loading (ignore missing keys)
+  freeze_encoder_epochs: 5  # Freeze encoder for first 5 epochs (warmup)
+  encoder_lr_scale: 0.1  # Encoder LR = base_lr * 0.1
+  
+  # RandLANet encoder architecture (match Semantic3D pretrained model)
+  num_neighbors: 16
+  num_layers: 5
+  num_points: 8192  # Match dataset.num_points
+  sub_sampling_ratio: [4, 4, 4, 4, 2]
+  in_channels: 3  # XYZ only (increase if using intensity/RGB)
+  dim_features: 8
+  dim_output: [16, 64, 128, 256, 512]
+  grid_size: 0.06
+  
+  # Projection head parameters
+  projection_hidden_dims: [512, 256]  # MLP hidden dimensions
+  projection_output_dim: 128  # Final embedding dimension
+  projection_use_bn: true  # Use batch normalization
+  projection_dropout: 0.1  # Dropout rate
+
+pipeline:
+  name: ContrastiveLearning
+  
+  # Optimizer settings
+  learning_rate: 0.001  # Base learning rate (for projection head)
+  # Encoder will use: learning_rate * encoder_lr_scale = 0.0001
+  weight_decay: 0.0001
+  scheduler_gamma: 0.99  # Exponential LR decay per epoch
+  
+  # Training settings
+  batch_size: 8  # Adjust based on GPU memory
+  val_batch_size: 8
+  test_batch_size: 8
+  num_workers: 0  # Parallel data loading
+  max_epoch: 100  # Total training epochs
+  save_ckpt_freq: 10  # Save checkpoint every N epochs
+  
+  # Contrastive learning parameters
+  temperature: 0.07  # Temperature for InfoNCE loss (0.05-0.1 typical)
+  freeze_encoder_epochs: 5  # Match model.freeze_encoder_epochs
+  
+  # Logging
+  main_log_dir: ./logs
+  train_sum_dir: contrastive_logs/randlanet_harvardforest_contrast/
+
+# Training strategy:
+# Epochs 0-4: Warmup phase
+#   - Encoder frozen (use pretrained Semantic3D weights)
+#   - Train only projection head
+#   - Learning rate: 0.001 (projection head)
+#
+# Epochs 5-99: Fine-tuning phase
+#   - Encoder unfrozen
+#   - Train full model end-to-end
+#   - Learning rates: 0.0001 (encoder), 0.001 (projection head)
+#   - LR decays exponentially with gamma=0.99
+
+# Expected performance:
+# - InfoNCE loss should decrease steadily
+# - Contrastive accuracy should increase to 70-90%
+# - Training time: ~4-8 hours (100 epochs, batch_size=8, 1 GPU)
+
+# After training:
+# - Use trained encoder for downstream tasks (segmentation, classification)
+# - Extract features from encoder for transfer learning
+# - Fine-tune on labeled subset of HarvardForest or other datasets
