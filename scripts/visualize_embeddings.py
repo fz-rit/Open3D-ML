@@ -304,16 +304,20 @@ def main():
     
     # Load dataset
     log.info(f"Loading dataset: {cfg.dataset.name}")
-    dataset_class = getattr(datasets, cfg.dataset.name)
-    dataset = dataset_class(**cfg.dataset)
+    if cfg.dataset.name == 'HarvardForest3DContrastive':
+        dataset = HarvardForest3DContrastive(**cfg.dataset)
+    else:
+        raise ValueError(f"Unknown dataset: {cfg.dataset.name}")
     split_dataset = dataset.get_split(args.split)
     
     log.info(f"Dataset split '{args.split}': {len(split_dataset)} samples")
     
     # Load model
     log.info(f"Loading model: {cfg.model.name}")
-    model_class = getattr(models, cfg.model.name)
-    model = model_class(**cfg.model)
+    if cfg.model.name == 'RandLANetContrast':
+        model = RandLANetContrast(**cfg.model)
+    else:
+        raise ValueError(f"Unknown model: {cfg.model.name}")
     
     # Load checkpoint
     log.info(f"Loading checkpoint from {args.ckpt}")
