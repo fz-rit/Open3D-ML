@@ -17,13 +17,12 @@ from tqdm import tqdm
 
 # Add Open3D-ML to path
 # sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
-repo_root = Path(__file__).parent.parent.parent
+repo_root = Path(__file__).parent.parent
 sys.path.insert(0, str(repo_root))
 
-from ml3d.torch.dataloaders import ConcatBatcher
 from ml3d.utils import Config
-from ml3d import datasets, models
-from ml3d.torch.pipelines import ContrastiveLearning
+from ml3d.datasets import HarvardForest3DContrastive
+from ml3d.torch.models import RandLANetContrast
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
