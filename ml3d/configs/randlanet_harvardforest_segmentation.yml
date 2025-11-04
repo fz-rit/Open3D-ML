@@ -1,0 +1,105 @@
+# RandLANet Semantic Segmentation Config for HarvardForest3D
+# Fine-tunes the contrastive pre-trained encoder for point-level semantic segmentation
+
+model:
+  name: RandLANetSegmentation
+  # Encoder parameters (must match pre-trained model)
+  num_neighbors: 16
+  num_layers: 5
+  num_points: 65536  # More points for segmentation (vs 8192 for contrastive)
+  sub_sampling_ratio: [4, 4, 4, 4, 2]
+  in_channels: 3
+  dim_features: 8
+  first_features_dim: 1024  # Must match pre-trained encoder
+  
+  # Segmentation parameters
+  num_classes: 5  # Adjust based on your label set (e.g., ground, vegetation, trunk, branches, other)
+  dropout: 0.5
+  
+  # Pre-trained encoder
+  pretrained_contrast_path: logs/checkpoint/ckpt_best.pth  # Path to contrastive checkpoint
+  freeze_encoder: true  # Start with frozen encoder, unfreeze later
+  encoder_lr_scale: 0.1  # If encoder unfrozen, use 10x lower LR
+  
+  batcher: DefaultBatcher
+
+dataset:
+  name: HarvardForest3D
+  dataset_path: /home/fzhcis/mylab/data/HarvardForest
+  cache_dir: ./logs/cache_harvardforest_segmentation
+  
+  # Sampling parameters for segmentation
+  num_points: 65536  # Sample 65K points per training sample
+  use_cache: true
+  
+  # Data augmentation
+  augment:
+    recenter: true
+    normalize: true
+    noise: 0.001
+    rotation: 'vertical'  # Only rotate around Z-axis to preserve tree structure
+    scale: [0.95, 1.05]  # Mild scaling
+    flip: 0.5  # Random flip
+  
+  # Class mapping (adjust based on your labels)
+  # Example for forest point clouds:
+  # 0: ground
+  # 1: low vegetation
+  # 2: medium vegetation  
+  # 3: high vegetation (canopy)
+  # 4: trunk/branches
+  ignored_label_inds: []  # Indices of classes to ignore
+  num_classes: 5
+
+pipeline:
+  name: SemanticSegmentation
+  
+  # Training parameters
+  batch_size: 4  # Reduce if OOM (65K points/sample is memory intensive)
+  val_batch_size: 4
+  test_batch_size: 1
+  
+  max_epoch: 100
+  save_ckpt_freq: 10
+  val_freq: 5
+  
+  # Optimizer
+  optimizer:
+    lr: 0.001  # Learning rate for segmentation head
+    # Encoder will use lr * encoder_lr_scale = 0.0001 if unfrozen
+  
+  # Learning rate scheduler
+  scheduler:
+    type: ExponentialLR
+    gamma: 0.98  # Decay per epoch
+  
+  # Loss function
+  loss:
+    type: CrossEntropyLoss
+    weight_type: sqrt_inverse_freq  # Weight classes by inverse frequency
+  
+  # Metrics
+  summary:
+    record_for: []
+    max_pts: 1000000  # Max points for visualization
+  
+  # Directories
+  main_log_dir: ./logs
+  train_sum_dir: segmentation_train
+  
+  # Device
+  device: cuda
+  
+  # Two-stage training strategy
+  # Stage 1 (epochs 0-30): Freeze encoder, train only segmentation head
+  # Stage 2 (epochs 30-100): Unfreeze encoder, fine-tune everything
+  training_stages:
+    - stage: 1
+      epochs: [0, 30]
+      freeze_encoder: true
+      description: "Warm-up: Train segmentation head with frozen encoder"
+    
+    - stage: 2
+      epochs: [30, 100]
+      freeze_encoder: false
+      description: "Fine-tune: Unfreeze encoder and train end-to-end"
