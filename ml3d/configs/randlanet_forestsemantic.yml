@@ -1,0 +1,36 @@
+dataset:
+  name: ForestSemantic
+  dataset_path: /shared/rc/mangrove/data/ForestSemantic/
+  cache_dir: ./logs/cache_forestsemantic/
+  class_weights: [250789, 2377612, 20488, 179050, 196894, 1173042]
+  ignored_label_inds: [0]
+  num_points: 40960
+  test_result_folder: ./test_forestsemantic
+  use_cache: true
+
+model:
+  name: RandLANet
+  batcher: DefaultBatcher
+  # Point to your trained model checkpoint
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/scripts/run_tests_fei/logs/RandLANet_Semantic3DUnified_torch/checkpoint/best_model_epoch0049_2025-11-17_16-42-06.pth
+  num_neighbors: 16
+  num_layers: 5
+  num_points: 40960
+  num_classes: 6
+  ignored_label_inds: [0]
+  sub_sampling_ratio: [4, 4, 4, 4, 2]
+  in_channels: 3
+  dim_features: 8
+  dim_output: [16, 64, 128, 256, 512]
+  grid_size: 0.02
+
+pipeline:
+  name: SemanticSegmentation
+  batch_size: 8
+  test_batch_size: 8
+  main_log_dir: ./logs
+  summary:
+    record_for: []
+    max_pts:
+    use_reference: false
+    max_outputs: 1

@@ -181,6 +181,7 @@ class SemanticSegmentation(BasePipeline):
             model.cfg.ignored_label_inds, device)
 
         metric.update(valid_scores, valid_labels)
+        log.info(f"Accuracy & IoU with nan for ignored labels and overall acc/mean IoU at last\n")
         log.info(f"Accuracy : {metric.acc()}")
         log.info(f"IoU : {metric.iou()}")
 
@@ -322,6 +323,7 @@ class SemanticSegmentation(BasePipeline):
         device = self.device
         model.device = device
         dataset = self.dataset
+        # save_ckpt_freq = self.cfg.save_ckpt_freq
 
         cfg = self.cfg
         model.to(device)
@@ -374,7 +376,7 @@ class SemanticSegmentation(BasePipeline):
             valid_split,
             batch_size=cfg.val_batch_size,
             sampler=get_sampler(valid_sampler),
-            num_workers=cfg.get('num_workers', 2),
+            num_workers=cfg.get('num_workers', 0),
             pin_memory=cfg.get('pin_memory', True),
             collate_fn=self.batcher.collate_fn,
             worker_init_fn=lambda x: np.random.seed(x + np.uint32(
@@ -464,8 +466,53 @@ class SemanticSegmentation(BasePipeline):
 
             self.save_logs(writer, epoch)
 
-            if epoch % cfg.save_ckpt_freq == 0 or epoch == cfg.max_epoch:
-                self.save_ckpt(epoch)
+            # Save best checkpoint based on validation IoU
+            current_iou = self.metric_val.iou()[-1]
+            if not hasattr(self, 'best_val_iou'):
+                self.best_val_iou = float('-inf')
+            
+            if current_iou > self.best_val_iou:
+                self.best_val_iou = current_iou
+                log.info(f"New best validation IoU: {current_iou:.4f} - Saving checkpoint")
+                self.save_ckpt(epoch, best=True)
+            else:
+                log.info(f"Validation IoU: {current_iou:.4f} (best: {self.best_val_iou:.4f})")
+
+            # Save regular checkpoint at specified frequency
+            if hasattr(cfg, 'save_ckpt_freq') and (epoch % cfg.save_ckpt_freq == 0):
+                self.save_ckpt(epoch, best=False)
+
+            # Early stopping check
+            if hasattr(cfg, 'early_stopping') and cfg.early_stopping.get('enabled', False):
+                patience = cfg.early_stopping.get('patience', 10)
+                min_delta = cfg.early_stopping.get('min_delta', 0.0)
+                monitor = cfg.early_stopping.get('monitor', 'val_iou')  # 'val_iou' or 'val_loss'
+                
+                if not hasattr(self, 'best_metric'):
+                    self.best_metric = float('-inf') if 'iou' in monitor or 'acc' in monitor else float('inf')
+                    self.patience_counter = 0
+                
+                current_metric = self.metric_val.iou()[-1] if 'iou' in monitor else (
+                    self.metric_val.acc()[-1] if 'acc' in monitor else np.mean(self.valid_losses)
+                )
+                
+                improved = False
+                if 'iou' in monitor or 'acc' in monitor:
+                    improved = current_metric > self.best_metric + min_delta
+                else:  # loss
+                    improved = current_metric < self.best_metric - min_delta
+                
+                if improved:
+                    self.best_metric = current_metric
+                    self.patience_counter = 0
+                    log.info(f"Early stopping: metric improved to {current_metric:.4f}")
+                else:
+                    self.patience_counter += 1
+                    log.info(f"Early stopping: no improvement for {self.patience_counter}/{patience} epochs")
+                
+                if self.patience_counter >= patience:
+                    log.info(f"Early stopping triggered after {epoch} epochs")
+                    break
 
     def get_batcher(self, device, split='training'):
         """Get the batcher to be used based on the device and split."""
@@ -671,10 +718,13 @@ class SemanticSegmentation(BasePipeline):
         """
         train_ckpt_dir = join(self.cfg.logs_dir, 'checkpoint')
         make_dir(train_ckpt_dir)
-
+        if not is_resume:
+            log.info("is_resume=False → starting from scratch.")
+            return 0
+        
         if ckpt_path is None:
             ckpt_path = latest_torch_ckpt(train_ckpt_dir)
-            if ckpt_path is not None and is_resume:
+            if ckpt_path is not None:
                 log.info('ckpt_path not given. Restore from the latest ckpt')
             else:
                 log.info('Initializing from scratch.')
@@ -687,30 +737,55 @@ class SemanticSegmentation(BasePipeline):
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.model.load_state_dict(ckpt['model_state_dict'])
         if 'optimizer_state_dict' in ckpt and hasattr(self, 'optimizer'):
-            log.info(f'Loading checkpoint optimizer_state_dict')
             self.optimizer.load_state_dict(ckpt['optimizer_state_dict'])
         if 'scheduler_state_dict' in ckpt and hasattr(self, 'scheduler'):
-            log.info(f'Loading checkpoint scheduler_state_dict')
             self.scheduler.load_state_dict(ckpt['scheduler_state_dict'])
         
         # Return the epoch number from checkpoint
         start_epoch = ckpt.get('epoch', 0)
-        if is_resume and start_epoch > 0:
-            log.info(f'Resuming from epoch {start_epoch}')
+        log.info(f'Resuming from epoch {start_epoch}')
         return start_epoch
 
-    def save_ckpt(self, epoch):
-        """Save a checkpoint at the passed epoch."""
+    def save_ckpt(self, epoch, best=False):
+        """Save a checkpoint."""
+        # import os
+        # import glob
+        
         path_ckpt = join(self.cfg.logs_dir, 'checkpoint')
         make_dir(path_ckpt)
+        
         timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        checkpoint_filename = f'model_epoch{epoch:04d}_{timestamp}.pth'
+        if best:
+            checkpoint_filename = 'best_' + checkpoint_filename
+        
+        # # Clean up older best model checkpoints with smaller epoch numbers
+        # pattern = join(path_ckpt, 'best_model_epoch*.pth')
+        # existing_checkpoints = glob.glob(pattern)
+        
+        # for ckpt_file in existing_checkpoints:
+        #     try:
+        #         # Extract epoch number from filename
+        #         basename = os.path.basename(ckpt_file)
+        #         if basename.startswith('best_model_epoch'):
+        #             # Parse epoch number from filename like "best_model_epoch0042_..."
+        #             epoch_str = basename.split('_')[0].replace('best', '').replace('model', '').replace('epoch', '')
+        #             if epoch_str.isdigit():
+        #                 old_epoch = int(epoch_str)
+        #                 if old_epoch < epoch:
+        #                     os.remove(ckpt_file)
+        #                     log.info(f'Removed older checkpoint: {basename} (epoch {old_epoch})')
+        #     except (ValueError, IndexError) as e:
+        #         log.warning(f'Could not parse epoch from {ckpt_file}: {e}')
+        #         continue
+        
         torch.save(
             dict(epoch=epoch,
                  model_state_dict=self.model.state_dict(),
                  optimizer_state_dict=self.optimizer.state_dict(),
                  scheduler_state_dict=self.scheduler.state_dict()),
-            join(path_ckpt, f'ckpt_{timestamp}_{epoch:05d}.pth'))
-        log.info(f'Epoch {epoch:3d}: save ckpt to {path_ckpt:s}')
+            join(path_ckpt, checkpoint_filename))
+        log.info(f'Epoch {epoch:3d}: saved model to {path_ckpt}/{checkpoint_filename}')
 
     def save_config(self, writer):
         """Save experiment configuration with tensorboard summary."""

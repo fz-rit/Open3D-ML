@@ -29,3 +29,5 @@ train_log/
 examples/
 docs/
 visualizations/
+output/
+**/*.log

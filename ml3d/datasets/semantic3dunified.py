@@ -32,15 +32,15 @@ class Semantic3DUnified(BaseDataset):
                  cache_dir='./logs/cache',
                  use_cache=False,
                  num_points=65536,
-                 class_weights=[
+                 class_counts4weight=[
                      2377612, 0, 199539, 196894, 1173042
                  ],
                  ignored_label_inds=[0],
-                 val_files=[
-                     'bildstein_station3_xyz_intensity_rgb',
-                     'sg27_station2_intensity_rgb'
-                 ],
                  test_result_folder='./test',
+                 train_ratio=0.7,
+                 val_ratio=0.15,
+                 test_ratio=0.15,
+                 split_seed=42,
                  **kwargs):
         """Initialize the function by passing the dataset and other details.
 
@@ -50,10 +50,13 @@ class Semantic3DUnified(BaseDataset):
             cache_dir: The directory where the cache is stored.
             use_cache: Indicates if the dataset should be cached.
             num_points: The maximum number of points to use when splitting the dataset.
-            class_weights: The class weights to use in the dataset.
+            class_counts4weight: Per-class sample counts used to derive loss weights.
             ignored_label_inds: A list of labels that should be ignored in the dataset.
-            val_files: The files with the data.
             test_result_folder: The folder where the test results should be stored.
+            train_ratio: Ratio of data to use for training (default: 0.7).
+            val_ratio: Ratio of data to use for validation (default: 0.15).
+            test_ratio: Ratio of data to use for testing (default: 0.15).
+            split_seed: Random seed for splitting the dataset (default: 42).
 
         Returns:
             class: The corresponding class.
@@ -62,11 +65,14 @@ class Semantic3DUnified(BaseDataset):
                          name=name,
                          cache_dir=cache_dir,
                          use_cache=use_cache,
-                         class_weights=class_weights,
+                         class_counts4weight=class_counts4weight,
                          num_points=num_points,
                          ignored_label_inds=ignored_label_inds,
-                         val_files=val_files,
                          test_result_folder=test_result_folder,
+                         train_ratio=train_ratio,
+                         val_ratio=val_ratio,
+                         test_ratio=test_ratio,
+                         split_seed=split_seed,
                          **kwargs)
 
         cfg = self.cfg
@@ -80,20 +86,38 @@ class Semantic3DUnified(BaseDataset):
         dataset_root = Path(self.cfg.dataset_path)
         log.info(f"Dataset root path: {dataset_root}, exists: {dataset_root.exists()}")
         
-        train_val_paths = sorted(dataset_root.glob('train/*.txt'))
-        test_paths = sorted(dataset_root.glob('test/*.txt'))
+        # Collect all .txt files from the dataset root (no subfolders)
+        all_paths = sorted(dataset_root.glob('*.txt'))
         
-        log.info(f"Found {len(train_val_paths)} train/val files; {len(test_paths)} test files.")
+        log.info(f"Found {len(all_paths)} total point cloud files.")
         
-        self.val_files, self.train_files = [], []
-        for path in train_val_paths:
-            if path.stem in cfg.val_files:
-                self.val_files.append(str(path))
-            else:
-                self.train_files.append(str(path))
+        # Validate ratios
+        total_ratio = cfg.train_ratio + cfg.val_ratio + cfg.test_ratio
+        if not np.isclose(total_ratio, 1.0):
+            log.warning(f"Train/val/test ratios sum to {total_ratio}, normalizing to 1.0")
+            cfg.train_ratio /= total_ratio
+            cfg.val_ratio /= total_ratio
+            cfg.test_ratio /= total_ratio
         
-        self.test_files = [str(p) for p in test_paths]
-        self.val_files = sorted(self.val_files)
+        # Split files based on ratios
+        np.random.seed(cfg.split_seed)
+        indices = np.random.permutation(len(all_paths))
+        
+        n_train = int(len(all_paths) * cfg.train_ratio)
+        n_val = int(len(all_paths) * cfg.val_ratio)
+        
+        train_indices = indices[:n_train]
+        val_indices = indices[n_train:n_train + n_val]
+        test_indices = indices[n_train + n_val:]
+        
+        self.train_files = sorted([str(all_paths[i]) for i in train_indices])
+        self.val_files = sorted([str(all_paths[i]) for i in val_indices])
+        self.test_files = sorted([str(all_paths[i]) for i in test_indices])
+        
+        log.info(f"Split: {len(self.train_files)} train, {len(self.val_files)} val, {len(self.test_files)} test files")
+        log.info(f"Train files: {[Path(f).stem for f in self.train_files]}")
+        log.info(f"Val files: {[Path(f).stem for f in self.val_files]}")
+        log.info(f"Test files: {[Path(f).stem for f in self.test_files]}")
 
     @staticmethod
     def get_label_to_names():
@@ -114,7 +138,6 @@ class Semantic3DUnified(BaseDataset):
         return label_to_names
 
     def get_split(self, split):
-        return Semantic3DUnifiedSplit(self, split=split)
         """Returns a dataset split.
 
         Args:
@@ -123,7 +146,8 @@ class Semantic3DUnified(BaseDataset):
 
         Returns:
             A dataset split object providing the requested subset of the data.
-	"""
+        """
+        return Semantic3DUnifiedSplit(self, split=split)
 
     def get_split_list(self, split):
         """Returns the list of data splits available.
@@ -231,14 +255,17 @@ class Semantic3DUnifiedSplit(BaseDatasetSplit):
         feat = np.array(feat, dtype=np.float32)
         intensity = np.array(intensity, dtype=np.float32)
 
-        # Load labels - raise error if not found
-        label_path = pc_path.parent.parent / "semantic3d_remapped_labels" / pc_path.parent.name / (pc_path.stem + ".labels")
+        label_path = pc_path.with_suffix('.labels')
+        
         if not exists(label_path):
             raise FileNotFoundError(
-                f"Label file not found: {label_path}\n"
+                f"Label file not found for: {pc_path.stem}\n"
                 f"Point cloud file: {pc_path}\n"
+                f"Tried locations:\n"
+                f"  - {pc_path.parent / (pc_path.stem + '.labels')}\n"
                 "Each .txt file must have a corresponding .labels file."
             )
+        
         labels = pd.read_csv(label_path,
                              header=None,
                              sep=r'\s+',

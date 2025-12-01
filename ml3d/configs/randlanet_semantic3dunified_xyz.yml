@@ -1,31 +1,33 @@
 dataset:
   name: Semantic3DUnified
-  dataset_path: /home/fzhcis/data/semantic3d_full/Semantic3D
+  dataset_path: /shared/rc/mangrove/data/Semantic3D/all_remapped/
   cache_dir: ./logs/cache_semantic3dunified/
-  class_weights: [250789, 2377612, 20488, 179050, 196894, 1173042]
+  class_weights: [8094, 14, 1981, 1969, 1774]
   ignored_label_inds: [0]
-  num_points: 65536
+  num_points: 40960
   test_result_folder: ./test
   use_cache: true
-  val_files:
-  - domfountain_station1_xyz_intensity_rgb
-  - bildstein_station1_xyz_intensity_rgb
-  steps_per_epoch_train: 30
-  steps_per_epoch_valid: 10
+  # Dynamic split ratios (must sum to 1.0)
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  split_seed: 42
+  steps_per_epoch_train: 64
+  steps_per_epoch_valid: 24
 model:
   name: RandLANet
   batcher: DefaultBatcher
-  ckpt_path: 
-  num_neighbors: 16
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/scripts/run_tests_fei/logs/RandLANet_Semantic3DUnified_torch/checkpoint/best_model_epoch0056_2025-11-29_22-51-25.pth
+  num_neighbors: 32
   num_layers: 5
-  num_points: 65536
-  num_classes: 6
+  num_points: 40960
+  num_classes: 5
   ignored_label_inds: [0]
   sub_sampling_ratio: [4, 4, 4, 4, 2]
   in_channels: 3
   dim_features: 8
   dim_output: [16, 64, 128, 256, 512]
-  grid_size: 0.06
+  grid_size: 0.02
   augment:
     recenter:
       dim: [0, 1]
@@ -44,17 +46,22 @@ model:
 pipeline:
   name: SemanticSegmentation
   optimizer:
-    lr: 0.001
-  batch_size: 4
+    lr: 0.0005
+  batch_size: 16
   num_workers: 4
   main_log_dir: ./logs
-  max_epoch: 5
-  save_ckpt_freq: 50
+  max_epoch: 200
   scheduler_gamma: 0.995
   is_resume: false
-  test_batch_size: 4
+  test_batch_size: 8
   train_sum_dir: train_log
-  val_batch_size: 4
+  val_batch_size: 8
+  save_ckpt_freq: 10
+  early_stopping:
+    enabled: true
+    patience: 60
+    min_delta: 0.001
+    monitor: 'val_iou'
   summary:
     record_for: []
     max_pts:

@@ -39,19 +39,19 @@ Utility script to read and analyze saved LAS files:
 
 ### Basic usage (save LAS only):
 ```bash
-python scripts/run_tests_fei/inference_randlanet_semantic3d.py \
-    --config ml3d/configs/randlanet_semantic3d_p3.yml \
+python scripts/run_tests_fei/inference_randlanet_semantic3dunified.py \
+    --config ml3d/configs/randlanet_semantic3dunified_xyz.yml \
     --indices 0 1 2 \
+    --metrics \
     --save-las ./output/las_files
 ```
 
 ### Full analysis (metrics + visualization + save):
 ```bash
-python scripts/run_tests_fei/inference_randlanet_semantic3d.py \
-    --config ml3d/configs/randlanet_semantic3d_p3.yml \
+python scripts/run_tests_fei/inference_randlanet_semantic3dunified.py \
+    --config ml3d/configs/randlanet_semantic3dunified_xyz.yml \
     --indices 0 1 2 \
     --metrics \
-    --visualize \
     --save-las ./output/las_files
 ```
 

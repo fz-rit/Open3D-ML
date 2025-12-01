@@ -5,7 +5,12 @@ from ....datasets.utils import DataProcessing
 
 
 def filter_valid_label(scores, labels, num_classes, ignored_label_inds, device):
-    """Loss functions for semantic segmentation."""
+    """Filter out ignored labels for loss computation.
+    - Rows with ignored labels are dropped.
+    - Remaining labels are reindexed to 0..K-1 by subtracting one per ignored label below them using the insert trick.
+    - Scores are filtered by rows; columns are unchanged.
+    - The result is ready for CrossEntropyLoss/metrics without leaking ignored labels into training/evaluation.
+    """
     valid_scores = scores.reshape(-1, num_classes).to(device)
     valid_labels = labels.reshape(-1).to(device)
 
