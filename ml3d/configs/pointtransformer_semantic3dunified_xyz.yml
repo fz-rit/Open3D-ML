@@ -11,9 +11,9 @@ dataset:
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
-  steps_per_epoch_train: 256
-  steps_per_epoch_valid: 128
-  num_points: 20480
+  steps_per_epoch_train: 100
+  steps_per_epoch_valid: 40
+  num_points: 40960
 model:
   name: PointTransformer
   batcher: ConcatBatcher
@@ -21,7 +21,7 @@ model:
   in_channels: 3
   blocks: [2, 3, 4, 6, 3]
   num_classes: 4
-  voxel_size: 0.03
+  voxel_size: 0.04
   max_voxels: 50000
   ignored_label_inds: [0]
   augment:
@@ -40,9 +40,9 @@ pipeline:
     lr: 0.02
     momentum: 0.9
     weight_decay: 0.0001
-  batch_size: 4
-  main_log_dir: /home/fzhcis/mylab/Open3D-ML/logs
-  max_epoch: 512
+  batch_size: 3
+  main_log_dir: ./logs
+  max_epoch: 300
   save_ckpt_freq: 10
   scheduler_gamma: 0.995
   test_batch_size: 4

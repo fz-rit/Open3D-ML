@@ -59,6 +59,14 @@ class PointTransformer(BaseModel):
         fpn_planes, fpnhead_planes, share_planes = 128, 64, 8
         stride, nsample = [1, 4, 4, 4, 4], [8, 16, 16, 16, 16]
         block = Bottleneck
+        
+        # Add learnable embedding for XYZ-only input (in_channels == 3)
+        if in_channels == 3:
+            self.input_embedding = nn.Linear(3, 3, bias=False)
+            # Initialize as identity to preserve coordinates initially
+            nn.init.eye_(self.input_embedding.weight)
+        else:
+            self.input_embedding = None
 
         self.encoders = nn.ModuleList()
         for i in range(5):
@@ -168,8 +176,11 @@ class PointTransformer(BaseModel):
         feats = [batch.feat]  # (n, c)
         row_splits = [batch.row_splits]  # (b)
 
-        feats[0] = points[0] if self.in_channels == 3 else torch.cat(
-            (points[0], feats[0]), 1)
+        if self.in_channels == 3:
+            # Use learnable embedding for XYZ-only input
+            feats[0] = self.input_embedding(points[0])
+        else:
+            feats[0] = torch.cat((points[0], feats[0]), 1)
 
         for i in range(5):
             p, f, r = self.encoders[i]([points[i], feats[i], row_splits[i]])
