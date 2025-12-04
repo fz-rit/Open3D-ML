@@ -121,15 +121,11 @@ def compute_and_display_metrics(gt_labels, pred_labels_raw, label_to_names, num_
     valid_pred = all_pred[valid_mask]
 
     if valid_gt.size == 0:
-        log.info("\n" + "="*70)
-        log.info("QUANTITATIVE ANALYSIS RESULTS - TEST SET")
-        log.info("="*70)
-        log.info("No valid labeled points after excluding unlabeled (0). Skipping metrics.\n")
-        return
+        raise ValueError("No valid ground truth labels found for metric computation after masking out label 0.")
 
     # Remap GT from {1..5} to {0..4} for metric computation
     # Predictions are already 0-4 from model output
-    gt_idx = valid_gt - 1  # {1..5} -> {0..4}
+    valid_gt_shifted = valid_gt - 1
 
     metric = SemSegMetric()
     # Convert predictions to one-hot format for metric computation
@@ -137,7 +133,7 @@ def compute_and_display_metrics(gt_labels, pred_labels_raw, label_to_names, num_
         torch.tensor(valid_pred, dtype=torch.long),
         num_classes=num_classes
     ).float()
-    labels = torch.tensor(gt_idx, dtype=torch.long)
+    labels = torch.tensor(valid_gt_shifted, dtype=torch.long)
 
     # Update metric
     metric.update(scores, labels)
@@ -168,7 +164,7 @@ def compute_and_display_metrics(gt_labels, pred_labels_raw, label_to_names, num_
     log.info("="*70 + "\n")
 
 
-def compare_histograms(gt_labels, pred_labels, num_classes, save_path=None, label_to_names=None, save_csv=True):
+def compare_histograms(gt_labels, pred_labels, save_path=None, label_to_names=None, save_csv=True):
     """Generate and save class distribution histogram comparing ground truth and predictions.
     
     Creates a dual-panel histogram with:
@@ -178,8 +174,7 @@ def compare_histograms(gt_labels, pred_labels, num_classes, save_path=None, labe
     
     Args:
         gt_labels: Ground truth labels array (0-5)
-        pred_labels: Predicted labels array (0-5)
-        num_classes: Number of classes (including unlabeled)
+        pred_labels: Predicted labels array (1-5, shifted from model output 0-4)
         save_path: Path to save the histogram plot (PNG)
         label_to_names: Dict mapping label ID to class name (optional)
         save_csv: Whether to save distribution data to CSV file
@@ -395,4 +390,4 @@ def check_pred_labels(pred_labels):
             "Expected range is 0-4 corresponding to classes 1-5."
         )
     
-    print(f"✅ Predicted labels check passed. Unique labels: {unique_labels}")
+    log.info(f"✅ Predicted labels check passed. Unique labels: {unique_labels}")

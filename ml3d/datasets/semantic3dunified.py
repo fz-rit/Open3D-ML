@@ -271,6 +271,9 @@ class Semantic3DUnifiedSplit(BaseDatasetSplit):
                              sep=r'\s+',
                              dtype=np.int32).values
         labels = np.array(labels, dtype=np.int32).reshape((-1,))
+        
+        # Remap label 5 (Misc) to 0 (Unlabeled) for unified ignoring
+        labels[labels == 5] = 0
 
         data = {
             'point': points,

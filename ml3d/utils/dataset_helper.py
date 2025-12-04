@@ -63,7 +63,7 @@ class Cache(object):
         return self._read(fpath)
 
     def _write(self, x, fpath):
-        np.save(fpath, x)
+        np.save(fpath, x, allow_pickle=True)
 
     def _read(self, fpath):
         return np.load(fpath, allow_pickle=True).item()

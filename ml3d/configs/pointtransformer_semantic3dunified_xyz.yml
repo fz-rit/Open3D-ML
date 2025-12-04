@@ -1,0 +1,61 @@
+dataset:
+  name: Semantic3DUnified
+  dataset_path: /shared/rc/mangrove/data/Semantic3D/all_remapped/
+  cache_dir: ./logs/cache_pointtransformer_semantic3dunified/
+  class_weights: [8094, 14, 1981, 1969]
+  ignored_label_inds:
+  - 0
+  test_result_folder: ./test
+  use_cache: true
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  split_seed: 42
+  steps_per_epoch_train: 256
+  steps_per_epoch_valid: 128
+  num_points: 20480
+model:
+  name: PointTransformer
+  batcher: ConcatBatcher
+  ckpt_path: # path/to/your/checkpoint
+  in_channels: 3
+  blocks: [2, 3, 4, 6, 3]
+  num_classes: 4
+  voxel_size: 0.03
+  max_voxels: 50000
+  ignored_label_inds: [0]
+  augment:
+    recenter:
+      dim: [0, 1]
+    rotate:
+      method: vertical
+    scale:
+      min_s: 0.9
+      max_s: 1.1
+    noise:
+      noise_std: 0.001
+pipeline:
+  name: SemanticSegmentation
+  optimizer:
+    lr: 0.02
+    momentum: 0.9
+    weight_decay: 0.0001
+  batch_size: 4
+  main_log_dir: /home/fzhcis/mylab/Open3D-ML/logs
+  max_epoch: 512
+  save_ckpt_freq: 10
+  scheduler_gamma: 0.995
+  test_batch_size: 4
+  train_sum_dir: train_log
+  val_batch_size: 4
+  num_workers: 2
+  early_stopping:
+    enabled: true
+    patience: 30
+    min_delta: 0.001
+    monitor: 'val_iou'
+  summary:
+    record_for: []
+    max_pts:
+    use_reference: false
+    max_outputs: 1

@@ -408,6 +408,12 @@ class RandLANet(BaseModel):
         scores, labels = filter_valid_label(results, labels, cfg.num_classes,
                                             cfg.ignored_label_inds, device)
 
+        if labels.numel() == 0:
+            # No valid labels in this batch (all ignored). Return zero loss and empty scores
+            # so the pipeline can skip metrics/updates safely.
+            zero_loss = results.sum() * 0.0
+            return zero_loss, labels, scores
+
         loss = Loss.weighted_CrossEntropyLoss(scores, labels)
 
         return loss, labels, scores

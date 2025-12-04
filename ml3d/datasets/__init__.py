@@ -6,6 +6,9 @@ from .parislille3d import ParisLille3D
 from .toronto3d import Toronto3D
 from .customdataset import Custom3D
 from .semantic3d import Semantic3D
+from .semantic3dunified import Semantic3DUnified
+from .forestsemantic import ForestSemantic
+from .digiforestunified import DigiForestUnified
 from .mangrove3d import Mangrove3D
 from .harvardforest3d import HarvardForest3D
 from .harvardforest3d_contrastive import HarvardForest3DContrastive
@@ -28,7 +31,7 @@ from .tumfacade import TUMFacade
 
 __all__ = [
     'SemanticKITTI', 'S3DIS', 'Toronto3D', 'ParisLille3D', 'Semantic3D', 
-    'Semantic3DUnified', 'Mangrove3D',
+    'Semantic3DUnified', 'ForestSemantic', 'DigiForestUnified', 'Mangrove3D',
     'HarvardForest3D', 'HarvardForest3DContrastive', 'Custom3D', 'utils', 'augment', 'samplers',
     'KITTI', 'Waymo', 'NuScenes', 'Lyft', 'ShapeNet', 'SemSegRandomSampler',
     'InferenceDummySplit', 'SemSegSpatiallyRegularSampler', 'Argoverse', 'Scannet', 'SunRGBD',

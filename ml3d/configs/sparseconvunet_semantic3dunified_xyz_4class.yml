@@ -1,0 +1,69 @@
+dataset:
+  name: Semantic3DUnified
+  dataset_path:  /shared/rc/mangrove/data/Semantic3D/all_remapped/
+  cache_dir: ./logs/cache_sparseconv_semantic3dunified
+  class_weights: [8094, 14, 1981, 1969]
+  test_result_folder: ./test
+  use_cache: true
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  split_seed: 42
+  steps_per_epoch_train: 256
+  steps_per_epoch_valid: 128
+  sampler:
+    name: 'SemSegRandomSampler'
+model:
+  name: SparseConvUnet
+  batcher: ConcatBatcher
+  ckpt_path: # path/to/your/checkpoint
+  multiplier: 32
+  voxel_size: 0.03
+  residual_blocks: True
+  conv_block_reps: 1
+  in_channels: 3
+  num_classes: 4
+  grid_size: 4096
+  ignored_label_inds: [0]
+  augment:
+    rotate:
+      method: vertical
+    scale:
+      min_s: 0.9
+      max_s: 1.1
+    noise:
+      noise_std: 0.01
+    RandomDropout:
+      dropout_ratio: 0.2
+    RandomHorizontalFlip:
+      axes: [0, 1]
+    ChromaticAutoContrast:
+      randomize_blend_factor: True
+      blend_factor: 0.5
+    ChromaticTranslation:
+      trans_range_ratio: 0.1
+    ChromaticJitter:
+      std: 0.05
+pipeline:
+  name: SemanticSegmentation
+  optimizer:
+    lr: 0.001
+    betas: [0.9, 0.999]
+  batch_size: 64
+  main_log_dir: ./logs
+  max_epoch: 512
+  save_ckpt_freq: 10
+  scheduler_gamma: 0.99
+  test_batch_size: 64
+  train_sum_dir: train_log
+  val_batch_size: 64
+  early_stopping:
+    enabled: true
+    patience: 30
+    min_delta: 0.001
+    monitor: 'val_iou'
+  summary:
+    record_for: []
+    max_pts:
+    use_reference: false
+    max_outputs: 1

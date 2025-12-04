@@ -1,0 +1,100 @@
+dataset:
+  name: Semantic3DUnified
+  dataset_path: /shared/rc/mangrove/data/Semantic3D/all_remapped/
+  cache_dir: ./logs/cache_kpconv_semantic3dunified/
+  class_weights: [8094, 14, 1981, 1969]
+  ignored_label_inds:
+  - 0
+  test_result_folder: ./test
+  use_cache: true
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  split_seed: 42
+  steps_per_epoch_train: 256
+  steps_per_epoch_valid: 128
+model:
+  name: KPFCNN
+  ckpt_path: # path/to/your/checkpoint
+  KP_extent: 1.2
+  KP_influence: linear
+  aggregation_mode: sum
+  architecture: ['simple',
+                'resnetb',
+                'resnetb_strided',
+                'resnetb',
+                'resnetb_strided',
+                'resnetb',
+                'resnetb_strided',
+                'resnetb',
+                'resnetb_strided',
+                'resnetb',
+                'nearest_upsample',
+                'unary',
+                'nearest_upsample',
+                'unary',
+                'nearest_upsample',
+                'unary',
+                'nearest_upsample',
+                'unary']
+  augment_color: 1.0
+  augment_noise: 0.001
+  augment_rotation: vertical
+  augment_scale_anisotropic: true
+  augment_scale_max: 1.1
+  augment_scale_min: 0.9
+  augment_symmetries:
+  - true
+  - false
+  - false
+  batch_limit: 10000
+  batch_norm_momentum: 0.98
+  batcher: ConcatBatcher
+  conv_radius: 2.5
+  deform_fitting_mode: point2point
+  deform_fitting_power: 1.0
+  deform_radius: 6.0
+  density_parameter: 5.0
+  first_features_dim: 128
+  first_subsampling_dl: 0.03
+  fixed_kernel_points: center
+  ignored_label_inds: [0]
+  in_features_dim: 3
+  in_points_dim: 3
+  in_radius: 6.0
+  lbl_values: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  min_in_points: 5120
+  max_in_points: 20480
+  modulated: false
+  num_classes: 4
+  num_kernel_points: 15
+  num_layers: 5
+  repulse_extent: 1.2
+  use_batch_norm: true
+pipeline:
+  name: SemanticSegmentation
+  adam_lr: 0.01
+  batch_size: 1
+  learning_rate: 0.01
+  lr_decays: 0.98477
+  deform_lr_factor: 0.1
+  main_log_dir: /home/fzhcis/mylab/Open3D-ML/logs
+  num_workers: 0
+  pin_memory: false
+  max_epoch: 200
+  save_ckpt_freq: 20
+  scheduler_gamma: 0.95
+  test_batch_size: 1
+  train_sum_dir: train_log
+  val_batch_size: 1
+  weight_decay: 0.001
+  early_stopping:
+    enabled: true
+    patience: 30
+    min_delta: 0.001
+    monitor: 'val_iou'
+  summary:
+    record_for: []
+    max_pts:
+    use_reference: false
+    max_outputs: 1

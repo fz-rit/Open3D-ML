@@ -15,7 +15,7 @@ Usage Examples:
     python inference_randlanet_semantic3dunified.py \
         --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_semantic3dunified_xyz.yml\
         --all  --save-las /home/fzhcis/data/open3d_outputs/randlanet/semantic3dunified \
-        --metrics > inference_1118.log 2>&1
+        --metrics > inference_120125.log 2>&1
 
 Arguments:
     --config: Path to YAML configuration file
@@ -31,7 +31,7 @@ import sys
 import argparse
 from pathlib import Path
 # import matplotlib.pyplot as plt
-import pandas as pd
+# import pandas as pd
 # Add the Open3D-ML repository root to Python path
 repo_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(repo_root))
@@ -42,7 +42,7 @@ sys.path.insert(0, str(repo_root))
 import ml3d.utils as utils
 # from ml3d.torch.modules.metrics import SemSegMetric
 # import torch
-from ml3d.scripts.run_tests_fei.inference_utils import (require_paths,
+from scripts.run_tests_fei.inference_utils import (require_paths,
                                                       build_model_dataset_pipeline,
                                                       select_indices,
                                                       check_pred_labels,
@@ -143,7 +143,6 @@ def main():
             compare_histograms(
                 gt_labels, 
                 pred_labels_raw + 1,  # Shift to 1-5 for display
-                num_classes_cfg,
                 save_path=las_output_dir / f"{attr['name']}_class_distribution.png",
                 label_to_names=label_to_names,
                 save_csv=True
@@ -155,7 +154,6 @@ def main():
             all_pred_labels.append(pred_labels_raw)
     
         log.info(f"[{k}/{len(indices)}] Sample: {attr['name']} | Points: {data['point'].shape[0]}")
-        log.info(f"Predicted labels unique: {np.unique(pred_labels_raw+1)}")
     
     # Compute and display metrics
     if args.metrics:

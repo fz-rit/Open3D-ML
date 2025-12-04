@@ -181,7 +181,7 @@ class SemanticSegmentation(BasePipeline):
             model.cfg.ignored_label_inds, device)
 
         metric.update(valid_scores, valid_labels)
-        log.info(f"Accuracy & IoU with nan for ignored labels and overall acc/mean IoU at last\n")
+        log.info(f"Accuracy & IoU with nan for ignored labels and last element for overall acc/mean IoU\n")
         log.info(f"Accuracy : {metric.acc()}")
         log.info(f"IoU : {metric.iou()}")
 
@@ -466,6 +466,28 @@ class SemanticSegmentation(BasePipeline):
 
             self.save_logs(writer, epoch)
 
+            # Per-epoch label histograms from confusion matrices
+            def _hist_from_conf(conf):
+                if conf is None:
+                    return None
+                # Row sums = TP + FN per true class
+                counts = conf.sum(axis=1)
+                return counts.astype(np.int64).tolist()
+
+            train_hist = _hist_from_conf(self.metric_train.confusion_matrix)
+            val_hist = _hist_from_conf(self.metric_val.confusion_matrix)
+            if train_hist is not None:
+                log.info(f"Label histogram (train true counts): {train_hist}")
+            if val_hist is not None:
+                log.info(f"Label histogram (val true counts): {val_hist}")
+
+            # Warn if validation set is missing classes
+            missing_classes = [i for i, count in enumerate(val_hist) if count == 0]
+            if len(missing_classes) > 0:
+                log.warning(f"Epoch {epoch}: Validation set missing {len(missing_classes)}/{len(val_hist)} classes: {missing_classes}. "
+                            f"mIoU only computed over {len(val_hist) - len(missing_classes)} classes. "
+                            f"Consider increasing steps_per_epoch_valid or validation set size.")
+                
             # Save best checkpoint based on validation IoU
             current_iou = self.metric_val.iou()[-1]
             if not hasattr(self, 'best_val_iou'):
@@ -758,26 +780,6 @@ class SemanticSegmentation(BasePipeline):
         checkpoint_filename = f'model_epoch{epoch:04d}_{timestamp}.pth'
         if best:
             checkpoint_filename = 'best_' + checkpoint_filename
-        
-        # # Clean up older best model checkpoints with smaller epoch numbers
-        # pattern = join(path_ckpt, 'best_model_epoch*.pth')
-        # existing_checkpoints = glob.glob(pattern)
-        
-        # for ckpt_file in existing_checkpoints:
-        #     try:
-        #         # Extract epoch number from filename
-        #         basename = os.path.basename(ckpt_file)
-        #         if basename.startswith('best_model_epoch'):
-        #             # Parse epoch number from filename like "best_model_epoch0042_..."
-        #             epoch_str = basename.split('_')[0].replace('best', '').replace('model', '').replace('epoch', '')
-        #             if epoch_str.isdigit():
-        #                 old_epoch = int(epoch_str)
-        #                 if old_epoch < epoch:
-        #                     os.remove(ckpt_file)
-        #                     log.info(f'Removed older checkpoint: {basename} (epoch {old_epoch})')
-        #     except (ValueError, IndexError) as e:
-        #         log.warning(f'Could not parse epoch from {ckpt_file}: {e}')
-        #         continue
         
         torch.save(
             dict(epoch=epoch,

@@ -4,18 +4,17 @@ from pathlib import Path
 from os.path import join, exists
 import logging
 
-import laspy
-
 from .base_dataset import BaseDataset, BaseDatasetSplit
 from ..utils import make_dir, DATASET
+from open3d import io
 
 log = logging.getLogger(__name__)
 
 
-class ForestSemantic(BaseDataset):
+class DigiForestUnified(BaseDataset):
     """
-    ForestSemantic dataset for inference only.
-    Contains .las point cloud files with corresponding .labels files.
+    DigiForestUnified dataset for inference only.
+    Contains .ply point cloud files with corresponding .labels files in a separate folder.
     
     Label mapping (same as Semantic3DUnified):
         0: Unlabeled
@@ -28,7 +27,8 @@ class ForestSemantic(BaseDataset):
 
     def __init__(self,
                  dataset_path,
-                 name='ForestSemantic',
+                 labels_path=None,
+                 name='DigiForestUnified',
                  cache_dir='./logs/cache',
                  use_cache=False,
                  num_points=65536,
@@ -38,10 +38,12 @@ class ForestSemantic(BaseDataset):
                  ignored_label_inds=[0],
                  test_result_folder='./test',
                  **kwargs):
-        """Initialize ForestSemantic dataset.
+        """Initialize DigiForestUnified dataset.
 
         Args:
-            dataset_path: Path to the dataset directory containing .las and .labels files.
+            dataset_path: Path to the directory containing .ply files.
+            labels_path: Path to the directory containing .labels files. 
+                        If None, assumes labels are in the same directory as .ply files.
             name: Dataset name.
             cache_dir: Directory for cache storage.
             use_cache: Whether to use caching.
@@ -61,6 +63,7 @@ class ForestSemantic(BaseDataset):
                          **kwargs)
 
         cfg = self.cfg
+        self.labels_path = labels_path if labels_path is not None else dataset_path
 
         self.label_to_names = self.get_label_to_names()
         self.num_classes = len(self.label_to_names)
@@ -69,23 +72,25 @@ class ForestSemantic(BaseDataset):
         self.ignored_labels = np.array([0])
 
         dataset_root = Path(self.cfg.dataset_path)
+        labels_root = Path(self.labels_path)
         log.info(f"Dataset root path: {dataset_root}, exists: {dataset_root.exists()}")
+        log.info(f"Labels root path: {labels_root}, exists: {labels_root.exists()}")
         
-        # Collect all .las files from the dataset root
-        las_files = sorted(dataset_root.glob('*.las'))
+        # Collect all .ply files from the dataset root
+        ply_files = sorted(dataset_root.glob('*.ply'))
         
-        if len(las_files) == 0:
+        if len(ply_files) == 0:
             raise FileNotFoundError(
-                f"No .las files found in {dataset_root}\n"
-                "Please ensure the dataset directory contains .las point cloud files."
+                f"No .ply files found in {dataset_root}\n"
+                "Please ensure the dataset directory contains .ply point cloud files."
             )
         
-        log.info(f"Found {len(las_files)} LAS files.")
+        log.info(f"Found {len(ply_files)} PLY files.")
         
-        # ForestSemantic is test-only, so all files go to test split
+        # DigiForestUnified is test-only, so all files go to test split
         self.train_files = []
         self.val_files = []
-        self.test_files = [str(f) for f in las_files]
+        self.test_files = [str(f) for f in ply_files]
         
         log.info(f"Test files: {[Path(f).stem for f in self.test_files]}")
 
@@ -114,7 +119,7 @@ class ForestSemantic(BaseDataset):
         Returns:
             A dataset split object.
         """
-        return ForestSemanticSplit(self, split=split)
+        return DigiForestUnifiedSplit(self, split=split)
 
     def get_split_list(self, split):
         """Returns the list of files for the requested split.
@@ -135,7 +140,7 @@ class ForestSemantic(BaseDataset):
         elif split in ['val', 'validation']:
             files = self.val_files
         else:
-            raise ValueError(f"Invalid split '{split}'. ForestSemantic only supports 'test' split.")
+            raise ValueError(f"Invalid split '{split}'. DigiForestUnified only supports 'test' split.")
         return files
 
     def is_tested(self, attr):
@@ -178,8 +183,8 @@ class ForestSemantic(BaseDataset):
         log.info(f"Saved {name} in {store_path}")
 
 
-class ForestSemanticSplit(BaseDatasetSplit):
-    """Split class for ForestSemantic dataset."""
+class DigiForestUnifiedSplit(BaseDatasetSplit):
+    """Split class for DigiForestUnified dataset."""
 
     def __init__(self, dataset, split='test'):
         super().__init__(dataset, split=split)
@@ -189,7 +194,7 @@ class ForestSemanticSplit(BaseDatasetSplit):
         return len(self.path_list)
 
     def get_data(self, idx):
-        """Load point cloud data from .las file.
+        """Load point cloud data from .ply file.
 
         Args:
             idx: Sample index.
@@ -197,33 +202,46 @@ class ForestSemanticSplit(BaseDatasetSplit):
         Returns:
             Dictionary with 'point', 'feat', 'intensity', and 'label'.
         """
-        las_path = Path(self.path_list[idx])
-        log.debug(f"get_data called {las_path}")
+        ply_path = Path(self.path_list[idx])
+        log.debug(f"get_data called {ply_path}")
 
-        # Read LAS file
-        las = laspy.read(las_path)
+        # Read PLY file using Open3D
+        pcd = io.read_point_cloud(str(ply_path))
         
         # Extract coordinates
-        points = np.vstack((las.x, las.y, las.z)).T.astype(np.float32)
+        points = np.asarray(pcd.points, dtype=np.float32)
         
-        n_points = points.shape[0]
-        feat = np.zeros((n_points, 3), dtype=np.float32)
-        log.warning(
-            f"No RGB channels found in {las_path.name}; using zeros for 'feat'."
-        )
+        # Extract colors if available
+        if pcd.has_colors():
+            # Colors are in [0, 1] range, convert to [0, 255]
+            colors = np.asarray(pcd.colors, dtype=np.float32) * 255.0
+            feat = colors
+        else:
+            n_points = points.shape[0]
+            feat = np.zeros((n_points, 3), dtype=np.float32)
+            log.warning(
+                f"No color channels found in {ply_path.name}; using zeros for 'feat'."
+            )
         
-        # Extract intensity
-        intensity = las.intensity.astype(np.float32)
+        # Extract intensity if available (stored as a custom property)
+        # If not available, use zeros
+        if hasattr(pcd, 'point') and hasattr(pcd.point, 'intensity'):
+            intensity = np.asarray(pcd.point.intensity, dtype=np.float32)
+        else:
+            n_points = points.shape[0]
+            intensity = np.zeros(n_points, dtype=np.float32)
+            log.debug(f"No intensity data found in {ply_path.name}; using zeros.")
         
-        # Load labels from corresponding .labels file
-        label_path = las_path.with_suffix('.labels')
+        # Load labels from corresponding .labels file in labels directory
+        labels_root = Path(self.dataset.labels_path)
+        label_path = labels_root / (ply_path.stem + '.labels')
         
         if not exists(label_path):
             raise FileNotFoundError(
-                f"Label file not found for: {las_path.stem}\n"
-                f"LAS file: {las_path}\n"
+                f"Label file not found for: {ply_path.stem}\n"
+                f"PLY file: {ply_path}\n"
                 f"Expected label file: {label_path}\n"
-                "Each .las file must have a corresponding .labels file."
+                "Each .ply file must have a corresponding .labels file in the labels directory."
             )
         
         # Read labels (one integer per line)
@@ -236,7 +254,7 @@ class ForestSemanticSplit(BaseDatasetSplit):
         n_points = points.shape[0]
         if labels.shape[0] != n_points:
             raise ValueError(
-                f"Shape mismatch for {las_path.stem}: "
+                f"Shape mismatch for {ply_path.stem}: "
                 f"points={n_points}, labels={labels.shape[0]}"
             )
 
@@ -258,11 +276,11 @@ class ForestSemanticSplit(BaseDatasetSplit):
         Returns:
             Dictionary with sample metadata.
         """
-        las_path = Path(self.path_list[idx])
-        name = las_path.stem
+        ply_path = Path(self.path_list[idx])
+        name = ply_path.stem
         split = self.split
-        attr = {'idx': idx, 'name': name, 'path': str(las_path), 'split': split}
+        attr = {'idx': idx, 'name': name, 'path': str(ply_path), 'split': split}
         return attr
 
 
-DATASET._register_module(ForestSemantic)
+DATASET._register_module(DigiForestUnified)

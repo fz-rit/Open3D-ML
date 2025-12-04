@@ -333,8 +333,12 @@ class KPFCNN(BaseModel):
         scores, labels = filter_valid_label(results, labels, cfg.num_classes,
                                             cfg.ignored_label_inds, device)
 
-        # Cross entropy loss
-        self.output_loss = Loss.weighted_CrossEntropyLoss(scores, labels)
+        if labels.numel() == 0:
+            # No valid labels; skip CE and reg, return zero loss to avoid NaNs
+            self.output_loss = results.sum() * 0.0
+        else:
+            # Cross entropy loss
+            self.output_loss = Loss.weighted_CrossEntropyLoss(scores, labels)
 
         # Regularization of deformable offsets
         if self.deform_fitting_mode == 'point2point':
