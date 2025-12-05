@@ -18,7 +18,7 @@ import ml3d.vis as vis
 import ml3d.utils as utils
 from ml3d.torch.modules.metrics import SemSegMetric
 import torch
-from compare_gt_pred_labels import compare_gt_pred_histogram
+from scripts.run_tests_fei.archive.compare_gt_pred_labels import compare_gt_pred_histogram
 from os.path import exists, join, dirname
 
 example_dir = os.path.dirname(os.path.realpath(__file__))

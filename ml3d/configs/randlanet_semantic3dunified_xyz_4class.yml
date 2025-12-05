@@ -17,7 +17,7 @@ dataset:
 model:
   name: RandLANet
   batcher: DefaultBatcher
-  ckpt_path: 
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/model_epoch0070_2025-12-03_22-50-31.pth
   num_neighbors: 128
   num_layers: 5
   num_points: 10240

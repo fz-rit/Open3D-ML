@@ -3,14 +3,14 @@ dataset:
   dataset_path: /shared/rc/mangrove/data/ForestSemantic/
   cache_dir: ./logs/cache_forestsemantic/
   class_weights: [2377612, 20488, 179050, 196894, 1173042]
-  num_points: 40960
+  num_points: 10240
   test_result_folder: ./test
   use_cache: true
 
 model:
   name: RandLANet
   batcher: DefaultBatcher
-  ckpt_path: /home/fzhcis/mylab/Open3D-ML/scripts/run_tests_fei/logs/RandLANet_Semantic3DUnified_torch/checkpoint/best_model_epoch0187_2025-12-01_10-04-44.pth
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/model_epoch0070_2025-12-03_22-50-31.pth
   num_neighbors: 128
   num_layers: 5
   num_points: 10240

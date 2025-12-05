@@ -27,21 +27,12 @@ Arguments:
 
 import logging
 import sys
-# import os
 import argparse
 from pathlib import Path
-# import matplotlib.pyplot as plt
-# import pandas as pd
-# Add the Open3D-ML repository root to Python path
 repo_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(repo_root))
 
-# import ml3d.datasets as datasets
-# import ml3d.torch.models as models
-# import ml3d.torch.pipelines as pipelines
 import ml3d.utils as utils
-# from ml3d.torch.modules.metrics import SemSegMetric
-# import torch
 from scripts.run_tests_fei.inference_utils import (require_paths,
                                                       build_model_dataset_pipeline,
                                                       select_indices,
@@ -50,7 +41,6 @@ from scripts.run_tests_fei.inference_utils import (require_paths,
                                                       compare_histograms,
                                                       compute_and_display_metrics)
 import numpy as np
-# import laspy
 
 log = logging.getLogger(__name__)
 

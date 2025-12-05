@@ -3,23 +3,22 @@
 
 Usage Examples:
     # Train RandLANet on Semantic3D:
-    python train_generic.py --model RandLANet --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_semantic3dunified_xyz.yml
+    python train_generic.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_semantic3dunified_xyz.yml
     
     # Train KPFCNN on S3DIS:
-    python train_generic.py --model KPFCNN --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/kpconv_s3dis.yml
+    python train_generic.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/kpconv_s3dis.yml
     
     # Train RandLANet on SemanticKITTI:
-    python train_generic.py --model RandLANet --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_semantickitti.yml
+    python train_generic.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/randlanet_semantickitti.yml
     
     # Train KPFCNN on Toronto3D:
-    python train_generic.py --model KPFCNN --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/kpconv_toronto3d.yml
+    python train_generic.py --config /home/fzhcis/mylab/Open3D-ML/ml3d/configs/kpconv_toronto3d.yml
     
     # Dry-run to validate configuration without training:
-    python train_generic.py --model RandLANet --config /path/to/config.yml --dry-run
+    python train_generic.py --config /path/to/config.yml --dry-run
 
 Arguments:
-    --model: Model architecture to use (RandLANet, KPFCNN, PointTransformer, etc.)
-    --config: Path to YAML configuration file
+    --config: Path to YAML configuration file (must contain 'model.name' field)
     --dry-run: Validate configuration and setup without running training
 """
 
@@ -48,8 +47,6 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
     )
-    parser.add_argument('--model', type=str, required=True, 
-                       help='Model architecture (e.g., RandLANet, KPFCNN, PointTransformer)')
     parser.add_argument('--config', type=str, required=True, 
                        help='Path to config YAML file')
     parser.add_argument('--dry-run', action='store_true',
@@ -70,16 +67,20 @@ def main():
         if param not in cfg.dataset or not cfg.dataset[param]:
             raise ValueError(f"Config missing 'dataset.{param}' parameter")
     
+    if 'name' not in cfg.model or not cfg.model['name']:
+        raise ValueError(f"Config missing 'model.name' parameter")
+    
     if not Path(cfg.dataset['dataset_path']).exists():
         raise FileNotFoundError(f"Dataset path not found: {cfg.dataset['dataset_path']}")
     
-    log.info(f"Model: {args.model} | Config: {args.config} | Dataset: {cfg.dataset['name']}")
+    model_name = cfg.model.pop('name')
+    log.info(f"Model: {model_name}")
     
     # Initialize model dynamically
     try:
-        model_class = getattr(models, args.model)
+        model_class = getattr(models, model_name)
     except AttributeError:
-        raise ValueError(f"Model '{args.model}' not found in ml3d.torch.models. "
+        raise ValueError(f"Model '{model_name}' not found in ml3d.torch.models. "
                         f"Available models: {[m for m in dir(models) if not m.startswith('_')]}")
     
     model = model_class(**cfg.model)
@@ -115,7 +116,7 @@ def main():
         log.info("=" * 80)
         log.info("DRY RUN - Checking config and dataloader...")
         log.info("=" * 80)
-        log.info(f"Model: {args.model}")
+        log.info(f"Model: {model_name}")
         log.info(f"Dataset: {cfg.dataset['name']} at {dataset.cfg.dataset_path}")
         log.info(f"Pipeline device: {pipeline.device}")
         log.info(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")

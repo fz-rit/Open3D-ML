@@ -82,8 +82,18 @@ def build_model_dataset_pipeline(cfg, dataset_path: str):
     cfg.dataset['dataset_path'] = dataset_path
     dataset = dataset_class(cfg.dataset.pop('dataset_path', None), **cfg.dataset)
     
-    # Initialize model + pipeline
-    model = models.RandLANet(**cfg.model)
+    # Initialize model dynamically from config
+    if 'name' not in cfg.model or not cfg.model['name']:
+        raise ValueError("Config missing 'model.name' parameter")
+    
+    model_name = cfg.model.pop('name')
+    try:
+        model_class = getattr(models, model_name)
+    except AttributeError:
+        raise ValueError(f"Model '{model_name}' not found in ml3d.torch.models. "
+                        f"Available models: {[m for m in dir(models) if not m.startswith('_')]}")
+    
+    model = model_class(**cfg.model)
     pipeline = pipelines.SemanticSegmentation(model, dataset=dataset, device="gpu", **cfg.pipeline)
     return model, dataset, pipeline
 
