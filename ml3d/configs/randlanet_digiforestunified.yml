@@ -3,7 +3,7 @@ dataset:
   dataset_path: /home/fzhcis/data/DigiForests/aggregate_outputs/semantics_cleaned
   labels_path: /home/fzhcis/data/DigiForests/aggregate_outputs/digiforests_remapped_labels
   cache_dir: ./logs/cache_digiforestunified/
-  class_weights: [66, 37, 58, 74, 1]
+  class_weights: [66, 37, 58, 74]
   ignored_label_inds: [0]
   num_points: 10240
   test_result_folder: ./test
@@ -13,7 +13,7 @@ dataset:
 model:
   name: RandLANet
   batcher: DefaultBatcher
-  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/model_epoch0070_2025-12-03_22-50-31.pth
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/model_epoch0090_2025-12-06_20-52-28.pth
   num_neighbors: 128
   num_layers: 5
   num_points: 10240
@@ -23,12 +23,12 @@ model:
   in_channels: 3
   dim_features: 8
   dim_output: [16, 64, 128, 256, 512]
-  grid_size: 0.03
+  grid_size: 0.06
 
 pipeline:
   name: SemanticSegmentation
   batch_size: 16
-  num_workers: 4
+  num_workers: 8
   main_log_dir: ./logs
   test_batch_size: 16
   summary:

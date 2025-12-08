@@ -1,7 +1,7 @@
 dataset:
   name: Semantic3DUnified
   dataset_path: /shared/rc/mangrove/data/Semantic3D/all_remapped/
-  cache_dir: ./logs/cache_semantic3dunified/
+  cache_dir: ./logs/cache_semantic3dunified_grid06/
   class_weights: [8094, 14, 1981, 1969]
   test_result_folder: ./test
   use_cache: true
@@ -10,8 +10,8 @@ dataset:
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
-  steps_per_epoch_train: 256
-  steps_per_epoch_valid: 128
+  steps_per_epoch_train: 128
+  steps_per_epoch_valid: 64
   sampler:
     name: 'SemSegRandomSampler'
 model:
@@ -27,7 +27,8 @@ model:
   in_channels: 3
   dim_features: 8
   dim_output: [16, 64, 128, 256, 512]
-  grid_size: 0.03
+  grid_size: 0.06
+  is_resume: false
   augment:
     recenter:
       dim: [0, 1]
@@ -48,11 +49,10 @@ pipeline:
   optimizer:
     lr: 0.0005
   batch_size: 16
-  num_workers: 4
+  num_workers: 8
   main_log_dir: /home/fzhcis/mylab/Open3D-ML/logs
   max_epoch: 300
   scheduler_gamma: 0.995
-  is_resume: false
   test_batch_size: 16
   train_sum_dir: train_log
   val_batch_size: 16

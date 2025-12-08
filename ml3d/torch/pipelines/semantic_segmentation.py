@@ -416,6 +416,28 @@ class SemanticSegmentation(BasePipeline):
                     inputs['data'].to(device)
                 self.optimizer.zero_grad()
                 results = model(inputs['data'])
+                
+                # Debug: Check for NaN in model output
+                if torch.isnan(results).any():
+                    log.error(f"[EPOCH {epoch} STEP {step}] ❌ NaN detected in model output (logits)")
+                    log.error(f"  Logits shape: {results.shape}")
+                    log.error(f"  NaN count: {torch.isnan(results).sum().item()}/{results.numel()}")
+                    log.error(f"  Logits stats: min={results[~torch.isnan(results)].min().item() if (~torch.isnan(results)).any() else 'all NaN'}, "
+                             f"max={results[~torch.isnan(results)].max().item() if (~torch.isnan(results)).any() else 'all NaN'}, "
+                             f"mean={results[~torch.isnan(results)].mean().item() if (~torch.isnan(results)).any() else 'all NaN'}")
+                    if 'labels' in inputs['data']:
+                        labels = inputs['data']['labels']
+                        log.error(f"  Input labels shape: {labels.shape}")
+                        log.error(f"  Input labels unique: {torch.unique(labels).tolist()}")
+                    raise RuntimeError(f"NaN in model forward pass at epoch {epoch}, step {step}")
+                
+                # Log stats periodically (first 10 steps, then every 50)
+                if step < 10 or step % 50 == 0:
+                    log.info(f"[EPOCH {epoch} STEP {step}] Logits stats: "
+                            f"shape={results.shape}, "
+                            f"range=[{results.min().item():.4f}, {results.max().item():.4f}], "
+                            f"mean={results.mean().item():.4f}, std={results.std().item():.4f}")
+                
                 loss, gt_labels, predict_scores = model.get_loss(
                     Loss, results, inputs, device)
 
@@ -741,7 +763,7 @@ class SemanticSegmentation(BasePipeline):
         train_ckpt_dir = join(self.cfg.logs_dir, 'checkpoint')
         make_dir(train_ckpt_dir)
         if not is_resume:
-            log.info("is_resume=False → starting from scratch.")
+            log.warning("is_resume=False → starting from scratch.")
             return 0
         
         if ckpt_path is None:

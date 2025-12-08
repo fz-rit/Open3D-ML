@@ -1,0 +1,104 @@
+# Domain Adaptation Configuration: RandLANet [PILOT MODE]
+# Source: Semantic3DUnified (labeled)
+# Target: ForestSemantic (unlabeled for training)
+# Purpose: Quick validation to test if CORAL helps (5-10 min per epoch)
+
+source_dataset:
+  name: Semantic3DUnified
+  dataset_path: /shared/rc/mangrove/data/Semantic3D/all_remapped/
+  cache_dir: ./logs/cache_semantic3dunified/
+  class_weights: [8094, 14, 1981, 1969]
+  ignored_label_inds: [0]
+  num_points: 10240
+  test_result_folder: ./test
+  use_cache: true
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  split_seed: 42
+  steps_per_epoch_train: 32  # PILOT: Reasonable coverage
+  steps_per_epoch_valid: 16
+
+target_dataset:
+  name: ForestSemantic
+  dataset_path: /shared/rc/mangrove/data/ForestSemantic/
+  cache_dir: ./logs/cache_forestsemantic/
+  class_weights: [2377612, 20488, 179050, 196894]
+  ignored_label_inds: [0]
+  num_points: 10240
+  test_result_folder: ./test_forestsemantic
+  use_cache: true
+
+model:
+  name: RandLANetDA
+  batcher: DefaultBatcher
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/model_epoch0070_2025-12-03_22-50-31.pth
+  num_neighbors: 128
+  num_layers: 5
+  num_points: 10240
+  num_classes: 4
+  ignored_label_inds: [0]
+  sub_sampling_ratio: [4, 4, 4, 4, 2]
+  in_channels: 3
+  dim_features: 8
+  dim_output: [16, 64, 128, 256, 512]
+  grid_size: 0.06
+  return_features: true
+  alignment_layers: [2, 4]  # PILOT: Two-layer alignment
+  augment:
+    recenter:
+      dim: [0, 1]
+    normalize:
+      feat:
+        method: linear
+        bias: 0
+        scale: 255
+    rotate:
+      method: vertical
+    scale:
+      min_s: 0.9
+      max_s: 1.1
+    noise:
+      noise_std: 0.001
+
+pipeline:
+  name: DomainAdaptationSemanticSegmentation
+  
+  # Domain adaptation parameters - PILOT settings
+  coral_weight: 0.1  # Start with baseline, tune in this phase
+  progressive_steps: 1000  # PILOT: Moderate ramp-up
+  alignment_layers: [2, 4]  # Must match model
+  layer_weights: [0.4, 0.6]  # Emphasize deeper features
+  use_geodesic: true
+  coral_loss_type: adaptive
+  target_labeled_ratio: 0.0
+  
+  # Standard training parameters
+  optimizer:
+    lr: 0.0005
+  batch_size: 8
+  num_workers: 0
+  main_log_dir: ./logs
+  max_epoch: 20  # PILOT: Enough to see convergence trends
+  scheduler_gamma: 0.995
+  grad_clip_norm: 1.0  # Prevent gradient explosion
+  is_resume: false
+  test_batch_size: 8
+  train_sum_dir: train_log
+  val_batch_size: 8
+  save_ckpt_freq: 5
+  monitor_freq: 5  # Run domain monitoring every 5 epochs
+  enable_tsne: true  # Enable t-SNE for pilot analysis
+  enable_umap: true  # Enable UMAP for pilot analysis
+  
+  early_stopping:
+    enabled: true
+    patience: 15  # Stop early if not improving
+    min_delta: 0.001
+    monitor: 'val_iou'
+  
+  summary:
+    record_for: []
+    max_pts:
+    use_reference: false
+    max_outputs: 1

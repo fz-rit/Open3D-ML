@@ -1,0 +1,110 @@
+# Domain Adaptation Configuration: RandLANet [FULL MODE]
+# Source: Semantic3DUnified 
+# Target: ForestSemantic 
+
+source_dataset:
+  name: Semantic3DUnified
+  dataset_path: /shared/rc/mangrove/data/Semantic3D/all_remapped/
+  cache_dir: ./logs/cache_semantic3dunified_grid06/
+  class_weights: [8094, 14, 1981, 1969]
+  ignored_label_inds: [0]
+  num_points: 10240  # Increased from 10240 to reduce batches with all ignored labels
+  # test_result_folder: ./test
+  use_cache: true
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  split_seed: 42
+  steps_per_epoch_train: 64
+  steps_per_epoch_valid: 32
+  sampler:
+    name: 'SemSegRandomSampler'
+
+target_dataset:
+  name: ForestSemantic
+  dataset_path: /shared/rc/mangrove/data/ForestSemantic/
+  cache_dir: ./logs/cache_forestsemantic_grid06/
+  class_weights: [2377612, 20488, 179050, 196894]
+  ignored_label_inds: [0]
+  num_points: 10240  # Match source dataset
+  # test_result_folder: ./test_forestsemantic
+  use_cache: true
+  sampler:
+    name: 'SemSegRandomSampler'
+
+model:
+  name: RandLANetDA
+  batcher: DefaultBatcher
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/best_model_epoch0067_2025-12-06_20-43-32.pth
+  num_neighbors: 128
+  num_layers: 5
+  num_points: 10240  # Match dataset num_points
+  num_classes: 4
+  ignored_label_inds: [0]
+  sub_sampling_ratio: [4, 4, 4, 4, 2]
+  in_channels: 3
+  dim_features: 8
+  dim_output: [16, 64, 128, 256, 512]
+  grid_size: 0.06
+  return_features: true
+  alignment_layers: [0, 2, 4]  # FULL: Multi-level alignment (tune based on pilot)
+  is_resume: true
+  augment:
+    recenter:
+      dim: [0, 1]
+    normalize:
+      feat:
+        method: linear
+        bias: 0
+        scale: 255
+    rotate:
+      method: vertical
+    scale:
+      min_s: 0.9
+      max_s: 1.1
+    noise:
+      noise_std: 0.001
+
+pipeline:
+  name: DomainAdaptationSemanticSegmentation
+  
+  # Domain adaptation parameters - FULL settings (tune based on pilot results)
+  coral_weight: 1.0        # Start high
+  progressive_steps: 100   # Gradually decay over 100 steps
+  min_weight_ratio: 0.01    # End at 0.1 (= 10 * 0.01)
+  alignment_layers: [0, 2, 4]  # Must match model
+  layer_weights: [0.2, 0.3, 0.5]  # Progressive weighting
+  use_geodesic: false
+  coral_loss_type: adaptive
+  num_target_validate_batch: 0   # Set >0 to validate on that many target batches each val
+  debug_coral_loss: true  # Enable detailed CORAL loss debugging on first iteration
+  
+  # Standard training parameters
+  optimizer:
+    lr: 0.0003
+  batch_size: 8
+  num_workers: 8
+  main_log_dir: ./logs
+  max_epoch: 120
+  scheduler_gamma: 0.995
+  grad_clip_norm: 10.0  # Prevent gradient explosion
+  test_batch_size: 16
+  train_sum_dir: train_log
+  val_batch_size: 16
+  save_ckpt_freq: 5
+  monitor_freq: 2  
+  pin_memory: false
+  enable_tsne: true 
+  enable_umap: true 
+  
+  early_stopping:
+    enabled: true
+    patience: 20
+    min_delta: 0.001
+    monitor: 'val_iou'
+  
+  summary:
+    record_for: []
+    max_pts:
+    use_reference: false
+    max_outputs: 1

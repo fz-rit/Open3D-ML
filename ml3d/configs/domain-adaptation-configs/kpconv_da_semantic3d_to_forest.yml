@@ -1,0 +1,143 @@
+# Domain Adaptation Configuration: KPConv (KPFCNN)
+# Source: Semantic3DUnified (labeled)
+# Target: ForestSemantic (unlabeled for training)
+
+source_dataset:
+  name: Semantic3DUnified
+  dataset_path: /shared/rc/mangrove/data/Semantic3D/all_remapped/
+  cache_dir: ./logs/cache_kpconv_semantic3dunified/
+  class_weights: [8094, 14, 1981, 1969, 1774]
+  ignored_label_inds: [0]
+  num_points: 65536
+  test_result_folder: ./test
+  use_cache: true
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  split_seed: 42
+
+target_dataset:
+  name: ForestSemantic
+  dataset_path: /path/to/forestsemantic/data/  # UPDATE THIS PATH
+  cache_dir: ./logs/cache_kpconv_forestsemantic/
+  class_weights: [250789, 2377612, 20488, 179050, 196894, 1173042]
+  ignored_label_inds: [0]
+  num_points: 65536
+  test_result_folder: ./test_forestsemantic
+  use_cache: false
+
+model:
+  name: KPFCNNDA
+  batcher: ConcatBatcher
+  ckpt_path: # Optional: path to pretrained model on source domain
+  
+  # KPConv architecture
+  num_classes: 5
+  ignored_label_inds: [0]
+  in_features_dim: 1  # 1 for intensity, 4 for RGB+intensity
+  in_radius: 4.0
+  architecture:
+    - simple
+    - resnetb
+    - resnetb_strided
+    - resnetb
+    - resnetb
+    - resnetb_strided
+    - resnetb
+    - resnetb
+    - resnetb_strided
+    - resnetb
+    - resnetb
+    - resnetb_strided
+    - resnetb
+    - nearest_upsample
+    - unary
+    - nearest_upsample
+    - unary
+    - nearest_upsample
+    - unary
+    - nearest_upsample
+    - unary
+  
+  # KPConv parameters
+  num_kernel_points: 15
+  first_subsampling_dl: 0.06
+  conv_radius: 2.5
+  deform_radius: 6.0
+  KP_extent: 1.2
+  KP_influence: linear
+  aggregation_mode: sum
+  first_features_dim: 128
+  use_batch_norm: true
+  batch_norm_momentum: 0.02
+  modulated: false
+  
+  # Deformable convolution parameters
+  deform_fitting_mode: point2point
+  deform_fitting_power: 1.0
+  repulse_extent: 1.2
+  
+  # Batch parameters
+  batch_num: 6  # Reduced for DA
+  batch_limit: 20000
+  val_batch_num: 6
+  max_in_points: 100000
+  
+  # Augmentation
+  augment_scale_anisotropic: true
+  augment_symmetries: [true, false, false]
+  augment_rotation: vertical
+  augment_scale_min: 0.8
+  augment_scale_max: 1.2
+  augment_noise: 0.001
+  augment_color: 0.8
+  
+  # Domain adaptation settings
+  return_features: true
+  alignment_layers: [0, 3, 6, 9]  # Align at multiple depths
+
+pipeline:
+  name: DomainAdaptationSemanticSegmentation
+  
+  # Domain adaptation parameters
+  coral_weight: 0.05  # Lower for KPConv (adjust based on results)
+  progressive_steps: 8000
+  alignment_layers: [0, 3, 6, 9]
+  layer_weights: [0.25, 0.25, 0.25, 0.25]  # Equal weights
+  use_geodesic: true
+  coral_loss_type: adaptive
+  target_labeled_ratio: 0.0
+  
+  # KPConv-specific training parameters
+  learning_rate: 0.001
+  deform_lr_factor: 0.1
+  momentum: 0.98
+  weight_decay: 0.001
+  scheduler_gamma: 0.995
+  grad_clip_norm: 100.0
+  
+  # Batch and epoch settings
+  batch_size: 1  # KPConv uses ConcatBatcher, effective batch in model config
+  val_batch_size: 1
+  test_batch_size: 1
+  num_workers: 2
+  max_epoch: 200
+  save_ckpt_freq: 10
+  
+  # Directories
+  main_log_dir: ./logs
+  train_sum_dir: train_log
+  is_resume: false
+  
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 50
+    min_delta: 0.001
+    monitor: 'val_iou'
+  
+  summary:
+    record_for: []
+    max_pts:
+    use_reference: false
+    max_outputs: 1

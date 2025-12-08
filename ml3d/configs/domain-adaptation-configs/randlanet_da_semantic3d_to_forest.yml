@@ -1,0 +1,101 @@
+# Domain Adaptation Configuration: RandLANet
+# Source: Semantic3DUnified (labeled)
+# Target: ForestSemantic (unlabeled for training)
+
+source_dataset:
+  name: Semantic3DUnified
+  dataset_path: /shared/rc/mangrove/data/Semantic3D/all_remapped/
+  cache_dir: ./logs/cache_semantic3dunified/
+  class_weights: [8094, 14, 1981, 1969]
+  ignored_label_inds: [0]
+  num_points: 10240
+  test_result_folder: ./test
+  use_cache: true
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  split_seed: 42
+  steps_per_epoch_train: 64
+  steps_per_epoch_valid: 24
+
+target_dataset:
+  name: ForestSemantic
+  dataset_path: /shared/rc/mangrove/data/ForestSemantic/
+  cache_dir: ./logs/cache_forestsemantic/
+  class_weights: [2377612, 20488, 179050, 196894]
+  ignored_label_inds: [0]
+  num_points: 10240
+  test_result_folder: ./test_forestsemantic
+  use_cache: false
+
+model:
+  name: RandLANetDA
+  batcher: DefaultBatcher
+  ckpt_path: # Optional: path to pretrained model on source domain
+  num_neighbors: 128
+  num_layers: 5
+  num_points: 10240
+  num_classes: 4
+  ignored_label_inds: [0]
+  sub_sampling_ratio: [4, 4, 4, 4, 2]
+  in_channels: 3
+  dim_features: 8
+  dim_output: [16, 64, 128, 256, 512]
+  grid_size: 0.02
+  # Domain adaptation settings
+  return_features: true
+  alignment_layers: [0, 2, 4]  # Which encoder layers to align
+  augment:
+    recenter:
+      dim: [0, 1]
+    normalize:
+      feat:
+        method: linear
+        bias: 0
+        scale: 255
+    rotate:
+      method: vertical
+    scale:
+      min_s: 0.9
+      max_s: 1.1
+    noise:
+      noise_std: 0.001
+
+pipeline:
+  name: DomainAdaptationSemanticSegmentation
+  
+  # Domain adaptation parameters
+  coral_weight: 0.1  # Weight for CORAL loss (tune: 0.01-1.0)
+  progressive_steps: 5000  # Steps to ramp up CORAL weight
+  alignment_layers: [0, 2, 4]  # Same as model
+  layer_weights: [0.3, 0.4, 0.3]  # Weights for each layer
+  use_geodesic: true  # Use geodesic distance (more accurate)
+  coral_loss_type: adaptive  # 'adaptive' or 'multi_layer'
+  target_labeled_ratio: 0.0  # Set to 0.1-0.2 to monitor target validation
+  
+  # Standard training parameters
+  optimizer:
+    lr: 0.0005  # Learning rate (may need to be lower than source-only)
+  batch_size: 8  # Reduced for memory (processes both domains)
+  num_workers: 4
+  main_log_dir: ./logs
+  max_epoch: 150  # May need more epochs for DA
+  scheduler_gamma: 0.995
+  is_resume: false
+  test_batch_size: 16
+  train_sum_dir: train_log
+  val_batch_size: 16
+  save_ckpt_freq: 10
+  
+  # Early stopping (optional)
+  early_stopping:
+    enabled: true
+    patience: 40
+    min_delta: 0.001
+    monitor: 'val_iou'
+  
+  summary:
+    record_for: []
+    max_pts:
+    use_reference: false
+    max_outputs: 1

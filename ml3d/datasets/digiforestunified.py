@@ -219,9 +219,9 @@ class DigiForestUnifiedSplit(BaseDatasetSplit):
         else:
             n_points = points.shape[0]
             feat = np.zeros((n_points, 3), dtype=np.float32)
-            log.warning(
-                f"No color channels found in {ply_path.name}; using zeros for 'feat'."
-            )
+            # log.warning(
+            #     f"No color channels found in {ply_path.name}; using zeros for 'feat'."
+            # )
         
         # Extract intensity if available (stored as a custom property)
         # If not available, use zeros

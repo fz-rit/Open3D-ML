@@ -36,7 +36,6 @@ import ml3d.torch.models as models
 import ml3d.torch.pipelines as pipelines
 from ml3d.torch.dataloaders import get_sampler, TorchDataloader
 from torch.utils.data import DataLoader
-import torch
 
 log = logging.getLogger(__name__)
 

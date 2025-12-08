@@ -1,0 +1,126 @@
+# Domain Adaptation Configuration: RandLANet
+# Source: Semantic3DUnified (labeled)
+# Target: DigiForestUnified (unlabeled for training)
+
+source_dataset:
+  name: Semantic3DUnified
+  dataset_path: /shared/rc/mangrove/data/Semantic3D/all_remapped/
+  cache_dir: ./logs/cache_semantic3dunified/
+  class_weights: [8094, 14, 1981, 1969]
+  ignored_label_inds: [0]
+  num_points: 10240
+  test_result_folder: ./test
+  use_cache: true
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  split_seed: 42
+  # Adjust based on training phase:
+  # Debug: 5 train, 2 valid (fast iteration)
+  # Pilot: 20 train, 10 valid (test DA effectiveness)
+  # Full: 64 train, 24 valid (best performance)
+  steps_per_epoch_train: 64 
+  steps_per_epoch_valid: 24
+
+target_dataset:
+  name: DigiForestUnified
+  dataset_path: /home/fzhcis/data/DigiForests/aggregate_outputs/semantics_cleaned
+  labels_path: /home/fzhcis/data/DigiForests/aggregate_outputs/digiforests_remapped_labels
+  cache_dir: ./logs/cache_digiforestunified/
+  class_weights: [66, 37, 58, 74]
+  ignored_label_inds: [0]
+  num_points: 10240
+  test_result_folder: ./test_digiforest
+  use_cache: false
+
+model:
+  name: RandLANetDA
+  batcher: DefaultBatcher
+  ckpt_path: # Optional: path to pretrained model on source domain
+  num_neighbors: 128
+  num_layers: 5
+  num_points: 10240
+  num_classes: 4
+  ignored_label_inds: [0]
+  sub_sampling_ratio: [4, 4, 4, 4, 2]
+  in_channels: 3  # XYZ only, change to 6 if using RGB
+  dim_features: 8
+  dim_output: [16, 64, 128, 256, 512]
+  grid_size: 0.06
+  # Domain adaptation settings
+  return_features: true
+  # Alignment layers (ENCODER only, indices 0-4 for 5 layers):
+  # Debug: [4] - single deepest layer
+  # Recommended: [0, 2, 4] - early, middle, late features
+  # Aggressive: [0, 1, 2, 3, 4] - all layers (more memory)
+  alignment_layers: [0, 2, 4]  # Multi-level alignment
+  augment:
+    recenter:
+      dim: [0, 1]
+    normalize:
+      feat:
+        method: linear
+        bias: 0
+        scale: 255
+    rotate:
+      method: vertical
+    scale:
+      min_s: 0.9
+      max_s: 1.1
+    noise:
+      noise_std: 0.001
+
+pipeline:
+  name: DomainAdaptationSemanticSegmentation
+  
+  # Domain adaptation parameters
+  # CORAL weight: balance between segmentation and domain alignment
+  # Too low (<0.01): insufficient adaptation
+  # Good range: 0.05-0.2 for forest domains
+  # Too high (>0.5): may hurt source performance
+  coral_weight: 0.1  # Start here, tune based on results
+  
+  # Progressive steps: gradual weight ramp-up for stability
+  # Debug: 50-100 (fast testing)
+  # Pilot: 500-1000 (quick convergence)
+  # Full: 5000-10000 (smooth adaptation)
+  progressive_steps: 5000  
+  
+  # Must match model alignment_layers
+  alignment_layers: [0, 2, 4]
+  
+  # Layer weights: emphasize deeper (more semantic) features
+  # Equal: [0.33, 0.33, 0.34] - simple baseline
+  # Progressive: [0.2, 0.3, 0.5] - weight later layers more (recommended)
+  layer_weights: [0.2, 0.3, 0.5]
+  
+  use_geodesic: true  # More accurate but slower; set false if memory issues
+  coral_loss_type: adaptive  # 'adaptive' (recommended) or 'multi_layer'
+  target_labeled_ratio: 0.0  # Set to 0.1-0.2 to monitor target validation
+  
+  # Standard training parameters
+  optimizer:
+    lr: 0.0005  # Learning rate (may need to be lower than source-only)
+  batch_size: 8  # Reduced for memory (processes both domains)
+  num_workers: 4
+  main_log_dir: ./logs
+  max_epoch: 150  # May need more epochs for DA
+  scheduler_gamma: 0.995
+  is_resume: false
+  test_batch_size: 16
+  train_sum_dir: train_log
+  val_batch_size: 16
+  save_ckpt_freq: 10
+  
+  # Early stopping (optional)
+  early_stopping:
+    enabled: true
+    patience: 40
+    min_delta: 0.001
+    monitor: 'val_iou'
+  
+  summary:
+    record_for: []
+    max_pts:
+    use_reference: false
+    max_outputs: 1
