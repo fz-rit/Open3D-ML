@@ -4,7 +4,7 @@ This directory contains the implementation of unsupervised domain adaptation usi
 
 ## Overview
 
-Domain adaptation helps transfer knowledge from a **labeled source domain** (e.g., Semantic3DUnified) to an **unlabeled target domain** (e.g., ForestSemantic, DigiForest) to improve model performance on the target domain without requiring target labels during training.
+Domain adaptation helps transfer knowledge from a **labeled source domain** (e.g., Semantic3DUnified) to an **target domain** (e.g., ForestSemantic, DigiForest) to improve model performance on the target domain without requiring target labels during training.
 
 ## Key Components
 

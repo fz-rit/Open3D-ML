@@ -66,47 +66,18 @@ def plot_tsne(source_features: torch.Tensor,
     tsne = TSNE(n_components=2, perplexity=perplexity, random_state=42, max_iter=1000)
     embedded = tsne.fit_transform(all_features)
     
-    # Create plot
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    # Create plot - single view showing domain separation
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     
-    # Plot 1: Domain separation
-    ax = axes[0]
+    # Domain separation visualization
     ax.scatter(embedded[:n_source, 0], embedded[:n_source, 1], 
-              c='blue', alpha=0.5, s=20, label='Source', marker='o')
+              c='blue', alpha=0.6, s=30, label='Source', marker='o', edgecolors='darkblue', linewidths=0.5)
     ax.scatter(embedded[n_source:, 0], embedded[n_source:, 1],
-              c='red', alpha=0.5, s=20, label='Target', marker='^')
-    ax.set_title('t-SNE: Domain Distribution', fontsize=14, fontweight='bold')
-    ax.legend()
-    ax.grid(alpha=0.3)
-    
-    # Plot 2: Class distribution (if labels available)
-    ax = axes[1]
-    if source_labels is not None and target_labels is not None:
-        source_labels_np = source_labels.cpu().numpy()
-        target_labels_np = target_labels.cpu().numpy()
-        
-        unique_labels = np.unique(np.concatenate([source_labels_np, target_labels_np]))
-        colors = plt.cm.tab10(np.linspace(0, 1, len(unique_labels)))
-        
-        for i, label in enumerate(unique_labels):
-            # Source points for this class
-            mask_s = source_labels_np == label
-            if mask_s.sum() > 0:
-                ax.scatter(embedded[:n_source][mask_s, 0], embedded[:n_source][mask_s, 1],
-                          c=[colors[i]], alpha=0.6, s=20, label=f'S-Class{label}', marker='o')
-            
-            # Target points for this class
-            mask_t = target_labels_np == label
-            if mask_t.sum() > 0:
-                ax.scatter(embedded[n_source:][mask_t, 0], embedded[n_source:][mask_t, 1],
-                          c=[colors[i]], alpha=0.6, s=20, label=f'T-Class{label}', marker='^')
-        
-        ax.set_title('t-SNE: Class Distribution', fontsize=14, fontweight='bold')
-        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
-    else:
-        ax.text(0.5, 0.5, 'No labels available', ha='center', va='center', transform=ax.transAxes)
-        ax.set_title('t-SNE: Class Distribution (N/A)', fontsize=14, fontweight='bold')
-    
+              c='red', alpha=0.6, s=30, label='Target', marker='^', edgecolors='darkred', linewidths=0.5)
+    ax.set_title('t-SNE: Domain Alignment Visualization\n(Intermediate Features)', fontsize=14, fontweight='bold')
+    ax.set_xlabel('t-SNE Dimension 1', fontsize=11)
+    ax.set_ylabel('t-SNE Dimension 2', fontsize=11)
+    ax.legend(fontsize=11, loc='best')
     ax.grid(alpha=0.3)
     
     plt.tight_layout()
@@ -173,45 +144,18 @@ def plot_umap(source_features: torch.Tensor,
     reducer = umap.UMAP(n_components=2, n_neighbors=n_neighbors, random_state=42)
     embedded = reducer.fit_transform(all_features)
     
-    # Create plot
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    # Create plot - single view showing domain separation
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     
-    # Plot 1: Domain separation
-    ax = axes[0]
+    # Domain separation visualization
     ax.scatter(embedded[:n_source, 0], embedded[:n_source, 1], 
-              c='blue', alpha=0.5, s=20, label='Source', marker='o')
+              c='blue', alpha=0.6, s=30, label='Source', marker='o', edgecolors='darkblue', linewidths=0.5)
     ax.scatter(embedded[n_source:, 0], embedded[n_source:, 1],
-              c='red', alpha=0.5, s=20, label='Target', marker='^')
-    ax.set_title('UMAP: Domain Distribution', fontsize=14, fontweight='bold')
-    ax.legend()
-    ax.grid(alpha=0.3)
-    
-    # Plot 2: Class distribution (if labels available)
-    ax = axes[1]
-    if source_labels is not None and target_labels is not None:
-        source_labels_np = source_labels.cpu().numpy()
-        target_labels_np = target_labels.cpu().numpy()
-        
-        unique_labels = np.unique(np.concatenate([source_labels_np, target_labels_np]))
-        colors = plt.cm.tab10(np.linspace(0, 1, len(unique_labels)))
-        
-        for i, label in enumerate(unique_labels):
-            mask_s = source_labels_np == label
-            if mask_s.sum() > 0:
-                ax.scatter(embedded[:n_source][mask_s, 0], embedded[:n_source][mask_s, 1],
-                          c=[colors[i]], alpha=0.6, s=20, label=f'S-Class{label}', marker='o')
-            
-            mask_t = target_labels_np == label
-            if mask_t.sum() > 0:
-                ax.scatter(embedded[n_source:][mask_t, 0], embedded[n_source:][mask_t, 1],
-                          c=[colors[i]], alpha=0.6, s=20, label=f'T-Class{label}', marker='^')
-        
-        ax.set_title('UMAP: Class Distribution', fontsize=14, fontweight='bold')
-        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
-    else:
-        ax.text(0.5, 0.5, 'No labels available', ha='center', va='center', transform=ax.transAxes)
-        ax.set_title('UMAP: Class Distribution (N/A)', fontsize=14, fontweight='bold')
-    
+              c='red', alpha=0.6, s=30, label='Target', marker='^', edgecolors='darkred', linewidths=0.5)
+    ax.set_title('UMAP: Domain Alignment Visualization\n(Intermediate Features)', fontsize=14, fontweight='bold')
+    ax.set_xlabel('UMAP Dimension 1', fontsize=11)
+    ax.set_ylabel('UMAP Dimension 2', fontsize=11)
+    ax.legend(fontsize=11, loc='best')
     ax.grid(alpha=0.3)
     
     plt.tight_layout()

@@ -73,12 +73,12 @@ class DomainAdaptationMonitor:
         
         # Extract features from both domains
         log.info("Extracting source domain features...")
-        source_features_list, source_labels = self._extract_features(
+        source_features_list = self._extract_features(
             source_loader, model, device, max_batches=20
         )
         
         log.info("Extracting target domain features...")
-        target_features_list, target_labels = self._extract_features(
+        target_features_list = self._extract_features(
             target_loader, model, device, max_batches=20
         )
         
@@ -101,10 +101,10 @@ class DomainAdaptationMonitor:
         self.metrics_tracker.update(epoch, metrics)
         self.metrics_tracker.update_layer_metrics(epoch, layer_metrics)
         
-        # Generate visualizations
+        # Generate visualizations (no labels - domain separation only)
         self._generate_visualizations(
             epoch, source_features_list, target_features_list,
-            source_labels, target_labels, metrics, layer_metrics
+            metrics, layer_metrics
         )
         
         log.info(f"Domain monitoring complete for epoch {epoch}")
@@ -121,10 +121,8 @@ class DomainAdaptationMonitor:
         
         Returns:
             features_list: List of tensors for each alignment layer
-            labels: Tensor of labels
         """
         features_by_layer = None
-        all_labels = []
         
         with torch.no_grad():
             for batch_idx, inputs in enumerate(dataloader):
@@ -140,14 +138,15 @@ class DomainAdaptationMonitor:
                     if isinstance(results, tuple) and len(results) >= 2:
                         _, features = results[0], results[1]
                     else:
+                        if batch_idx == 0:
+                            raise RuntimeError(f"Model did not return features! results type: {type(results)}, "
+                                             f"len: {len(results) if isinstance(results, tuple) else 'N/A'}")
                         continue
                     
                     # Initialize storage on first batch
                     if features_by_layer is None:
                         features_by_layer = [[] for _ in range(len(features))]
                     
-                    # Accumulate features
-                    batch_size = features[0].size(0)
                     for layer_idx, feat in enumerate(features):
                         # Flatten spatial dimensions if needed
                         if feat.dim() > 2:
@@ -156,23 +155,12 @@ class DomainAdaptationMonitor:
                         if torch.isnan(feat).any():
                             feat = torch.nan_to_num(feat, nan=0.0)
                         features_by_layer[layer_idx].append(feat.cpu())
-                    
-                    # Extract labels from data dict (one per batch sample, not per point)
-                    if 'data' in inputs and isinstance(inputs['data'], dict) and 'label' in inputs['data']:
-                        labels = inputs['data']['label']
-                        if not isinstance(labels, torch.Tensor):
-                            labels = torch.from_numpy(labels)
-                        # Labels are per-point; reshape to [batch_size, points_per_sample] and take mode
-                        labels_flat = labels.cpu().flatten()
-                        points_per_sample = labels_flat.size(0) // batch_size
-                        if points_per_sample > 0:
-                            labels_reshaped = labels_flat.reshape(batch_size, points_per_sample)
-                            # Take most common label per sample (mode along points dimension)
-                            sample_labels = torch.mode(labels_reshaped, dim=1)[0]
-                            all_labels.append(sample_labels)
                 
                 except Exception as e:
-                    log.warning(f"Failed to extract features from batch {batch_idx}: {e}")
+                    log.error(f"Failed to extract features from batch {batch_idx}: {e}")
+                    if batch_idx == 0:
+                        # Re-raise on first batch to fail fast with full context
+                        raise
                     continue
         
         if features_by_layer is None:
@@ -185,9 +173,8 @@ class DomainAdaptationMonitor:
                 concatenated = torch.cat(layer_feats, dim=0)
                 features_list.append(concatenated)
         
-        labels_tensor = torch.cat(all_labels, dim=0) if all_labels else None
-        
-        return features_list, labels_tensor
+        log.info(f"Extracted features from {len(features_list)} layers")
+        return features_list
     
     def _compute_metrics(self, source_features_list, target_features_list,
                         source_val_iou, target_val_iou):
@@ -237,8 +224,8 @@ class DomainAdaptationMonitor:
         return metrics, layer_metrics
     
     def _generate_visualizations(self, epoch, source_features_list, target_features_list,
-                                source_labels, target_labels, metrics, layer_metrics):
-        """Generate all visualization plots and reports."""
+                                metrics, layer_metrics):
+        """Generate all visualization plots and reports (domain separation only, no per-class labels)."""
         epoch_dir = join(self.monitoring_dir, f'epoch_{epoch:04d}')
         make_dir(epoch_dir)
         
@@ -248,23 +235,23 @@ class DomainAdaptationMonitor:
         
         plots = {}
         
-        # t-SNE plot
+        # t-SNE plot (domain separation only)
         if self.enable_tsne:
             try:
                 tsne_path = join(epoch_dir, 'tsne.png')
                 plot_tsne(source_feat_deep, target_feat_deep, 
-                         source_labels, target_labels, save_path=tsne_path)
+                         None, None, save_path=tsne_path)
                 plots['tsne'] = tsne_path
                 log.info(f"Generated t-SNE plot: {tsne_path}")
             except Exception as e:
                 log.warning(f"Failed to generate t-SNE plot: {e}")
         
-        # UMAP plot
+        # UMAP plot (domain separation only)
         if self.enable_umap:
             try:
                 umap_path = join(epoch_dir, 'umap.png')
                 umap_result = plot_umap(source_feat_deep, target_feat_deep,
-                                       source_labels, target_labels, save_path=umap_path)
+                                       None, None, save_path=umap_path)
                 if umap_result:
                     plots['umap'] = umap_path
                     log.info(f"Generated UMAP plot: {umap_path}")

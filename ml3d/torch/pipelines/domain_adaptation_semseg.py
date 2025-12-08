@@ -417,7 +417,7 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
                 
                 self.monitor.run_monitoring(
                     epoch=epoch,
-                    source_loader=source_valid_loader,
+                    source_loader=source_train_loader,  # Use train set for consistent monitoring with CORAL training
                     target_loader=target_train_loader,
                     model=model,
                     device=self.device,

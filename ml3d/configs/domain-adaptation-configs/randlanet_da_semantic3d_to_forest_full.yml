@@ -70,22 +70,22 @@ pipeline:
   
   # Domain adaptation parameters - FULL settings (tune based on pilot results)
   coral_weight: 1.0        # Start high
-  progressive_steps: 100   # Gradually decay over 100 steps
-  min_weight_ratio: 0.01    # End at 0.1 (= 10 * 0.01)
+  progressive_steps: 200   # Gradually decay over 200 steps
+  min_weight_ratio: 0.1    # End at 0.1 (= 1 * 0.1)
   alignment_layers: [0, 2, 4]  # Must match model
   layer_weights: [0.2, 0.3, 0.5]  # Progressive weighting
   use_geodesic: false
   coral_loss_type: adaptive
-  num_target_validate_batch: 0   # Set >0 to validate on that many target batches each val
+  num_target_validate_batch: 1   # Set >0 to validate on that many target batches each val
   debug_coral_loss: true  # Enable detailed CORAL loss debugging on first iteration
   
   # Standard training parameters
   optimizer:
     lr: 0.0003
   batch_size: 8
-  num_workers: 8
+  num_workers: 0
   main_log_dir: ./logs
-  max_epoch: 120
+  max_epoch: 72
   scheduler_gamma: 0.995
   grad_clip_norm: 10.0  # Prevent gradient explosion
   test_batch_size: 16
