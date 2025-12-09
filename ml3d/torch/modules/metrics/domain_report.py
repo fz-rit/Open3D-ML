@@ -359,21 +359,74 @@ def _generate_metric_cards(metrics: Dict) -> str:
 
 def _generate_visualizations_section(encoded_images: Dict) -> str:
     """Generate visualizations section HTML."""
+    
+    # Encoder visualizations (domain alignment)
     section_html = """
     <div class="section">
-        <h2 class="section-title">📈 Feature Space Visualizations</h2>
+        <h2 class="section-title">📈 Encoder Features: Domain Alignment</h2>
+        <p style="color: #666; margin-bottom: 20px;">
+            Encoder features (bottleneck) show domain-level alignment between source and target.
+            Good alignment = overlapping blue (source) and red (target) distributions.
+        </p>
     """
     
-    plot_order = [
-        ('tsne', 't-SNE Projection'),
-        ('umap', 'UMAP Projection'),
+    encoder_plots = [
+        ('tsne', 't-SNE: Domain Separation'),
+        ('umap', 'UMAP: Domain Separation'),
         ('feature_distributions', 'Feature Distributions'),
         ('covariance_matrices', 'Covariance Matrices'),
+    ]
+    
+    for key, title in encoder_plots:
+        if key in encoded_images:
+            section_html += f"""
+            <div class="plot-container">
+                <div class="plot-title">{title}</div>
+                <img src="{encoded_images[key]}" alt="{title}">
+            </div>
+            """
+    
+    section_html += "</div>"
+    
+    # Decoder visualizations (class distribution)
+    section_html += """
+    <div class="section">
+        <h2 class="section-title">🎨 Decoder Features: Class Distribution</h2>
+        <p style="color: #666; margin-bottom: 20px;">
+            Decoder features (penultimate layer) show per-class separation quality.
+            Good adaptation = same class (same color) from source (circles) and target (triangles) cluster together.
+        </p>
+    """
+    
+    decoder_plots = [
+        ('decoder_tsne_classes', 't-SNE: Class Distribution'),
+        ('decoder_umap_classes', 'UMAP: Class Distribution'),
+        ('decoder_feature_distributions', 'Decoder Feature Distributions'),
+    ]
+    
+    for key, title in decoder_plots:
+        if key in encoded_images:
+            section_html += f"""
+            <div class="plot-container">
+                <div class="plot-title">{title}</div>
+                <img src="{encoded_images[key]}" alt="{title}">
+            </div>
+            """
+    
+    section_html += "</div>"
+    
+    # Training progress
+    section_html += """
+    <div class="section">
+        <h2 class="section-title">📊 Training Progress</h2>
+    """
+    
+    progress_plots = [
         ('layer_alignment', 'Layer-wise Alignment Progress'),
         ('training_metrics', 'Training Metrics Over Time'),
     ]
     
-    for key, title in plot_order:
+    for key, title in progress_plots:
         if key in encoded_images:
             section_html += f"""
             <div class="plot-container">

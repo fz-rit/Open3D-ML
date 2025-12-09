@@ -18,6 +18,7 @@ from torch.utils.data import DataLoader
 from open3d.visualization.tensorboard_plugin import summary
 from .semantic_segmentation import SemanticSegmentation
 from .domain_adaptation_monitoring import DomainAdaptationMonitor
+from .decoder_class_monitoring import DecoderClassMonitor
 from .domain_adaptation_trainer import DomainAdaptationTrainer
 from ..dataloaders import get_sampler, TorchDataloader, DefaultBatcher, ConcatBatcher
 from ..utils import latest_torch_ckpt
@@ -137,7 +138,7 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
         self.use_geodesic = use_geodesic
         self.coral_loss_type = coral_loss_type
         # Number of target batches to evaluate during validation (0 disables target eval)
-        self.num_target_validate_batch = self.cfg.get('num_target_validate_batch', 0)
+        self.num_target_validate_batch = self.cfg.get('num_target_validate_batch', 10)
         
         # Initialize CORAL loss
         if coral_loss_type == 'adaptive':
@@ -156,6 +157,7 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
         
         # Initialize monitoring and training modules (created in run_train)
         self.monitor = None
+        self.decoder_monitor = None
         self.trainer = None
         
         # Ensure model supports feature extraction
@@ -325,6 +327,16 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
             enable_umap=self.cfg.get('enable_umap', True)
         )
         
+        # Initialize decoder class monitoring (for class distribution visualization)
+        # Use same monitoring_dir as encoder so plots are in same epoch folders
+        self.decoder_monitor = DecoderClassMonitor(
+            monitoring_dir=monitoring_dir,
+            monitor_freq=self.cfg.get('decoder_monitor_freq', 10),
+            enable_tsne=self.cfg.get('enable_tsne', True),
+            enable_umap=self.cfg.get('enable_umap', True)
+        )
+        log.info(f"Decoder class monitoring will save to same epoch folders as encoder monitoring")
+        
         self.trainer = DomainAdaptationTrainer(
             model=model,
             optimizer=self.optimizer,
@@ -385,6 +397,10 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
                 model.eval()
                 with torch.no_grad():
                     for step, inputs in enumerate(target_valid_loader):
+                        # Limit to configured number of batches
+                        if step >= self.num_target_validate_batch:
+                            break
+                            
                         if hasattr(inputs['data'], 'to'):
                             inputs['data'].to(self.device)
 
@@ -423,6 +439,17 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
                     device=self.device,
                     source_val_iou=source_val_iou,
                     target_val_iou=target_val_iou
+                )
+            
+            # Decoder class monitoring (periodic, with class labels)
+            if self.decoder_monitor.should_monitor(epoch, self.cfg.max_epoch):
+                log.info("Running decoder class monitoring...")
+                self.decoder_monitor.run_monitoring(
+                    epoch=epoch,
+                    source_loader=source_valid_loader,  # Use validation data with ground truth
+                    target_loader=target_valid_loader if target_valid_loader else target_train_loader,
+                    model=model,
+                    device=self.device
                 )
 
             # Label histograms

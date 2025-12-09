@@ -6,6 +6,7 @@ for domain adaptation training monitoring.
 """
 
 import logging
+import os
 from os.path import join
 
 import numpy as np
@@ -225,11 +226,15 @@ class DomainAdaptationMonitor:
     
     def _generate_visualizations(self, epoch, source_features_list, target_features_list,
                                 metrics, layer_metrics):
-        """Generate all visualization plots and reports (domain separation only, no per-class labels)."""
+        """Generate all visualization plots and reports (domain separation only, no per-class labels).
+        
+        Focus on bottleneck layer (deepest encoder) - most abstract domain-invariant features.
+        Layer-wise metrics already track alignment across all specified layers.
+        """
         epoch_dir = join(self.monitoring_dir, f'epoch_{epoch:04d}')
         make_dir(epoch_dir)
         
-        # Use deepest layer for visualizations
+        # Use bottleneck (deepest) layer for visualizations - most important for domain alignment
         source_feat_deep = source_features_list[-1]
         target_feat_deep = target_features_list[-1]
         
@@ -293,6 +298,18 @@ class DomainAdaptationMonitor:
             log.info(f"Generated training metrics plot: {metrics_path}")
         except Exception as e:
             log.warning(f"Failed to generate training metrics plot: {e}")
+        
+        # Check for decoder plots in same epoch directory and add to plots dict
+        decoder_plots = {
+            'decoder_tsne_classes': join(epoch_dir, 'decoder_tsne_classes.png'),
+            'decoder_umap_classes': join(epoch_dir, 'decoder_umap_classes.png'),
+            'decoder_feature_distributions': join(epoch_dir, 'decoder_feature_distributions.png'),
+        }
+        
+        for key, path in decoder_plots.items():
+            if os.path.exists(path):
+                plots[key] = path
+                log.info(f"Found decoder plot for report: {key}")
         
         # Generate HTML report
         if metrics:

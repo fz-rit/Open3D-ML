@@ -280,18 +280,20 @@ class RandLANetDA(BaseModel):
 
         return inputs
 
-    def forward(self, inputs, return_intermediate_features=None):
+    def forward(self, inputs, return_intermediate_features=None, return_decoder_features=False):
         """Forward pass for RandLANet with domain adaptation support.
 
         Args:
             inputs: Input dictionary with point cloud data
             return_intermediate_features: Override self.return_features if provided.
-                If True, returns (logits, feature_list).
-                If False, returns only logits.
+                If True, returns encoder features for domain alignment.
+            return_decoder_features: If True, returns decoder features for class visualization.
 
         Returns:
             If return_intermediate_features is True:
-                (scores, features_list) where features_list contains encoder features
+                (scores, encoder_features_list) - encoder features for domain alignment
+            If return_decoder_features is True:
+                (scores, decoder_features_list) - decoder features for class distribution
             Otherwise:
                 scores: (B, N, num_classes) segmentation logits
         """
@@ -344,7 +346,8 @@ class RandLANetDA(BaseModel):
 
         feat = self.mlp(feat)
 
-        # Decoder
+        # Decoder - collect decoder features for class distribution visualization
+        decoder_features = []
         for i in range(cfg.num_layers):
             feat_interpolation_i = self.nearest_interpolation(
                 feat, interpolation_indices_list[-i - 1])
@@ -352,11 +355,21 @@ class RandLANetDA(BaseModel):
                 [encoder_feat_list[-i - 2], feat_interpolation_i], dim=1)
             feat_decoder_i = self.decoder[i](feat_decoder_i)
             feat = feat_decoder_i
+            
+            # Collect decoder features if requested
+            if return_decoder_features:
+                # Keep spatial structure: (B, C, N, 1) -> (B*N, C)
+                feat_flat = feat.squeeze(3).transpose(1, 2).contiguous()
+                feat_flat = feat_flat.view(-1, feat_flat.size(-1))
+                decoder_features.append(feat_flat)
 
         scores = self.fc1(feat)
         scores = scores.squeeze(3).transpose(1, 2)
         
-        if should_return_features:
+        # Return based on what was requested
+        if return_decoder_features:
+            return scores, decoder_features
+        elif should_return_features:
             return scores, alignment_features
         else:
             return scores

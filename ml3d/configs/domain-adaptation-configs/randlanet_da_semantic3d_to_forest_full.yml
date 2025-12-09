@@ -76,7 +76,7 @@ pipeline:
   layer_weights: [0.2, 0.3, 0.5]  # Progressive weighting
   use_geodesic: false
   coral_loss_type: adaptive
-  num_target_validate_batch: 1   # Set >0 to validate on that many target batches each val
+  num_target_validate_batch: 10   # Target validation batches per epoch (0 disables)
   debug_coral_loss: true  # Enable detailed CORAL loss debugging on first iteration
   
   # Standard training parameters
@@ -85,14 +85,15 @@ pipeline:
   batch_size: 8
   num_workers: 0
   main_log_dir: ./logs
-  max_epoch: 72
+  max_epoch: 100
   scheduler_gamma: 0.995
   grad_clip_norm: 10.0  # Prevent gradient explosion
   test_batch_size: 16
   train_sum_dir: train_log
   val_batch_size: 16
   save_ckpt_freq: 5
-  monitor_freq: 2  
+  monitor_freq: 2           # Encoder domain alignment monitoring frequency
+  decoder_monitor_freq: 2   # Decoder class distribution monitoring frequency
   pin_memory: false
   enable_tsne: true 
   enable_umap: true 
