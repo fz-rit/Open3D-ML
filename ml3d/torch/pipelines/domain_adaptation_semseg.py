@@ -418,7 +418,7 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
             # Save logs with domain adaptation metrics
             self.save_logs_da(writer, epoch, target_metric, 
                             train_stats['train_loss'], val_stats['val_loss'], 
-                            train_stats['coral_loss'])
+                            train_stats['coral_loss'], train_stats.get('adaptive_weight'))
             
             # Domain adaptation monitoring (periodic)
             if self.monitor.should_monitor(epoch, self.cfg.max_epoch):
@@ -490,12 +490,13 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
         writer.close()
 
     def save_logs_da(self, writer, epoch, target_metric=None, 
-                    train_loss=None, val_loss=None, coral_loss=None):
+                    train_loss=None, val_loss=None, coral_loss=None, adaptive_weight=None):
         """Save logs including domain adaptation metrics."""
         # Use provided losses or fallback to NaN
         train_loss = train_loss if train_loss is not None else float('nan')
         val_loss = val_loss if val_loss is not None else float('nan')
         coral_loss = coral_loss if coral_loss is not None else float('nan')
+        adaptive_weight = adaptive_weight if adaptive_weight is not None else float('nan')
         
         # Log losses (always available)
         loss_dict = {
@@ -507,12 +508,12 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
         for key, val in loss_dict.items():
             writer.add_scalar(key, val, epoch)
         
-        # Log CORAL weight schedule
-        if self.coral_loss_type == 'adaptive':
-            current_weight = self.coral_loss.get_current_weight()
-            writer.add_scalar('CORAL weight', current_weight, epoch)
-        
-        log.info(f"Loss: {loss_dict}")
+        # Log EMA-based adaptive weight
+        if not np.isnan(adaptive_weight):
+            writer.add_scalar('Adaptive CORAL weight', adaptive_weight, epoch)
+            log.info(f"Loss: {loss_dict}, Adaptive weight: {adaptive_weight:.2f}")
+        else:
+            log.info(f"Loss: {loss_dict}")
         
         # Standard metrics (handle None when all batches skipped)
         train_accs = self.metric_train.acc()

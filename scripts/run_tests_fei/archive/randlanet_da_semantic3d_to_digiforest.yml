@@ -15,10 +15,6 @@ source_dataset:
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
-  # Adjust based on training phase:
-  # Debug: 5 train, 2 valid (fast iteration)
-  # Pilot: 20 train, 10 valid (test DA effectiveness)
-  # Full: 64 train, 24 valid (best performance)
   steps_per_epoch_train: 64 
   steps_per_epoch_valid: 24
 

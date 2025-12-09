@@ -1,23 +1,21 @@
 # Domain Adaptation Configuration: RandLANet [FULL MODE]
-# Source: Semantic3DUnified (labeled)
-# Target: DigiForestUnified (unlabeled for training)
-# Purpose: Best performance, production-quality model (30-60 min per epoch)
+# Source: Semantic3DUnified 
+# Target: DigiForestUnified 
 
 source_dataset:
   name: Semantic3DUnified
   dataset_path: /shared/rc/mangrove/data/Semantic3D/all_remapped/
-  cache_dir: ./logs/cache_semantic3dunified/
+  cache_dir: ./logs/cache_semantic3dunified_grid06/
   class_weights: [8094, 14, 1981, 1969]
   ignored_label_inds: [0]
   num_points: 10240
-  test_result_folder: ./test
   use_cache: true
   train_ratio: 0.7
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
-  steps_per_epoch_train: 128
-  steps_per_epoch_valid: 64
+  steps_per_epoch_train: 64
+  steps_per_epoch_valid: 32
   sampler:
     name: 'SemSegRandomSampler'
 
@@ -29,7 +27,6 @@ target_dataset:
   class_weights: [66, 37, 58, 74]
   ignored_label_inds: [0]
   num_points: 10240
-  test_result_folder: ./test_digiforest
   use_cache: true
   sampler:
     name: 'SemSegRandomSampler'
@@ -37,7 +34,7 @@ target_dataset:
 model:
   name: RandLANetDA
   batcher: DefaultBatcher
-  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/model_epoch0090_2025-12-06_20-52-28.pth
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/best_model_epoch0067_2025-12-06_20-43-32.pth
   num_neighbors: 128
   num_layers: 5
   num_points: 10240
@@ -75,29 +72,33 @@ pipeline:
   progressive_steps: 3000  # FULL: Smooth ramp-up
   alignment_layers: [0, 2, 4]  # Must match model
   layer_weights: [0.2, 0.3, 0.5]  # Progressive weighting
-  use_geodesic: true
+  use_geodesic: false
   coral_loss_type: adaptive
+  num_target_validate_batch: 10   # Target validation batches per epoch (0 disables)
+  debug_coral_loss: true  # Enable detailed CORAL loss debugging on first iteration
   
   # Standard training parameters
   optimizer:
-    lr: 0.0005  # May reduce to 0.0003 if unstable
-  batch_size: 8  # Increase to 16 if memory allows
-  num_workers: 8
+    lr: 0.0003
+  batch_size: 8
+  num_workers: 0
   main_log_dir: ./logs
-  max_epoch: 150  # FULL: Train to convergence
+  max_epoch: 70
   scheduler_gamma: 0.995
-  grad_clip_norm: 1.0  # Prevent gradient explosion
+  grad_clip_norm: 10.0  # Prevent gradient explosion
   test_batch_size: 16
   train_sum_dir: train_log
   val_batch_size: 16
-  save_ckpt_freq: 10
-  monitor_freq: 10  # Run domain monitoring every 10 epochs
-  enable_tsne: true  # Enable t-SNE for detailed monitoring in full runs
-  enable_umap: true   # Keep UMAP for full mode analysis
+  save_ckpt_freq: 5
+  monitor_freq: 2           # Encoder domain alignment monitoring frequency
+  decoder_monitor_freq: 2   # Decoder class distribution monitoring frequency
+  pin_memory: false
+  enable_tsne: true 
+  enable_umap: true 
   
   early_stopping:
     enabled: true
-    patience: 40
+    patience: 20
     min_delta: 0.001
     monitor: 'val_iou'
   

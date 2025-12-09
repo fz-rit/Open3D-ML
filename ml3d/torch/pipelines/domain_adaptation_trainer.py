@@ -45,6 +45,12 @@ class DomainAdaptationTrainer:
         self.coral_losses = []
         self.skipped_batches = 0
         self.nan_debug_logs = 0
+        
+        # EMA-based adaptive weighting
+        self.seg_loss_ema = None  # Will be initialized on first batch
+        self.coral_loss_ema = None
+        self.ema_decay = 0.9  # Smoothing factor for moving average
+        self.adaptive_weights = []  # Track weight history
 
         # Track batchnorm layers for temporary freezing during target forward
         self._bn_layers = [m for m in self.model.modules() if isinstance(m, torch.nn.modules.batchnorm._BatchNorm)]
@@ -152,8 +158,28 @@ class DomainAdaptationTrainer:
                 epoch=epoch, step=step
             )
 
-            # Combined loss
-            total_loss = seg_loss + coral_loss_value
+            # EMA-based adaptive weighting
+            # Update moving averages
+            seg_magnitude = seg_loss.detach()
+            coral_magnitude = coral_loss_value.detach()
+            
+            if self.seg_loss_ema is None:
+                # Initialize EMAs on first batch
+                self.seg_loss_ema = seg_magnitude
+                self.coral_loss_ema = coral_magnitude
+            else:
+                # Update EMAs with exponential smoothing
+                self.seg_loss_ema = self.ema_decay * self.seg_loss_ema + (1 - self.ema_decay) * seg_magnitude
+                self.coral_loss_ema = self.ema_decay * self.coral_loss_ema + (1 - self.ema_decay) * coral_magnitude
+            
+            # Calculate adaptive weight to match scales
+            # Clamp to [1, 100] to prevent extreme values
+            adaptive_weight = self.seg_loss_ema / (self.coral_loss_ema + 1e-8)
+            adaptive_weight = torch.clamp(adaptive_weight, min=0.01, max=100.0)
+            self.adaptive_weights.append(adaptive_weight.cpu().item())
+            
+            # Combined loss with adaptive weighting
+            total_loss = seg_loss + adaptive_weight * coral_loss_value
 
             # Skip batch if CORAL loss caused NaN/Inf
             if torch.isnan(total_loss) or torch.isinf(total_loss):
@@ -185,13 +211,10 @@ class DomainAdaptationTrainer:
             self.coral_losses.append(coral_loss_value.cpu().item())
             
             # Update progress bar
-            current_coral_weight = (self.coral_loss.get_current_weight() 
-                                   if self.coral_loss_type == 'adaptive' 
-                                   else getattr(self.coral_loss, 'base_weight', 0.1))
             pbar.set_postfix({
                 'seg_loss': f'{seg_loss.item():.4f}',
                 'coral_loss': f'{coral_loss_value.item():.4f}',
-                'coral_w': f'{current_coral_weight:.4f}'
+                'adaptive_w': f'{adaptive_weight.item():.2f}'
             })
 
             # Save summary for first batch
@@ -253,10 +276,14 @@ class DomainAdaptationTrainer:
         # Step scheduler
         self.scheduler.step()
         
+        # Calculate average adaptive weight for this epoch
+        avg_adaptive_weight = np.mean(self.adaptive_weights) if self.adaptive_weights else float('nan')
+        
         return {
             'summary': summary,
             'train_loss': np.mean(self.losses) if self.losses else float('nan'),
             'coral_loss': np.mean(self.coral_losses) if self.coral_losses else float('nan'),
+            'adaptive_weight': avg_adaptive_weight,
         }
 
     def _set_bn_eval(self):

@@ -9,7 +9,6 @@ source_dataset:
   class_weights: [8094, 14, 1981, 1969]
   ignored_label_inds: [0]
   num_points: 10240  # Increased from 10240 to reduce batches with all ignored labels
-  # test_result_folder: ./test
   use_cache: true
   train_ratio: 0.7
   val_ratio: 0.15
@@ -27,7 +26,6 @@ target_dataset:
   class_weights: [2377612, 20488, 179050, 196894]
   ignored_label_inds: [0]
   num_points: 10240  # Match source dataset
-  # test_result_folder: ./test_forestsemantic
   use_cache: true
   sampler:
     name: 'SemSegRandomSampler'
@@ -68,10 +66,12 @@ model:
 pipeline:
   name: DomainAdaptationSemanticSegmentation
   
-  # Domain adaptation parameters - FULL settings (tune based on pilot results)
-  coral_weight: 1.0        # Start high
-  progressive_steps: 200   # Gradually decay over 200 steps
-  min_weight_ratio: 0.1    # End at 0.1 (= 1 * 0.1)
+  # Domain adaptation parameters - EMA-based adaptive weighting
+  # NOTE: coral_weight, progressive_steps, min_weight_ratio are IGNORED with EMA strategy
+  # The adaptive weight is automatically calculated as: seg_loss_ema / coral_loss_ema
+  coral_weight: 1.0        # Not used (kept for compatibility)
+  progressive_steps: 200   # Not used (kept for compatibility)
+  min_weight_ratio: 0.1    # Not used (kept for compatibility)
   alignment_layers: [0, 2, 4]  # Must match model
   layer_weights: [0.2, 0.3, 0.5]  # Progressive weighting
   use_geodesic: false
