@@ -62,12 +62,12 @@ class DecoderClassMonitor:
         # Extract decoder features with labels from both domains
         log.info("Extracting source decoder features...")
         source_features_list, source_labels = self._extract_decoder_features(
-            source_loader, model, device, max_batches=20
+            source_loader, model, device, max_batches=10
         )
         
         log.info("Extracting target decoder features...")
         target_features_list, target_labels = self._extract_decoder_features(
-            target_loader, model, device, max_batches=20
+            target_loader, model, device, max_batches=10
         )
         
         if not source_features_list or not target_features_list:
@@ -82,7 +82,7 @@ class DecoderClassMonitor:
         
         log.info(f"Decoder class monitoring complete for epoch {epoch}")
     
-    def _extract_decoder_features(self, dataloader, model, device, max_batches=20):
+    def _extract_decoder_features(self, dataloader, model, device, max_batches=10):
         """
         Extract decoder features and labels from a dataloader.
         
@@ -230,31 +230,52 @@ class DecoderClassMonitor:
         log.info(f"Generating decoder class visualizations (penultimate layer) "
                 f"(source: {source_feat.shape}, target: {target_feat.shape})")
         
-        # Subsample if too many points (for visualization speed)
-        max_points = 5000
-        if source_feat.size(0) > max_points:
-            idx = torch.randperm(source_feat.size(0))[:max_points]
-            source_feat_vis = source_feat[idx]
-            source_labels_vis = source_labels[idx] if source_labels is not None else None
-        else:
-            source_feat_vis = source_feat
-            source_labels_vis = source_labels
+        # Stratified sampling: 8000 samples per class for balanced visualization
+        samples_per_class = 8000
         
-        if target_feat.size(0) > max_points:
-            idx = torch.randperm(target_feat.size(0))[:max_points]
-            target_feat_vis = target_feat[idx]
-            target_labels_vis = target_labels[idx] if target_labels is not None else None
-        else:
-            target_feat_vis = target_feat
-            target_labels_vis = target_labels
+        def stratified_sample(features, labels, n_per_class):
+            """Sample n_per_class points from each class."""
+            if labels is None:
+                return features, labels
+            
+            unique_labels = torch.unique(labels)
+            sampled_indices = []
+            
+            for label in unique_labels:
+                label_mask = (labels == label)
+                label_indices = torch.where(label_mask)[0]
+                
+                # Sample up to n_per_class points from this class
+                n_available = label_indices.size(0)
+                n_sample = min(n_available, n_per_class)
+                
+                if n_sample < n_available:
+                    # Random sample
+                    perm = torch.randperm(n_available)[:n_sample]
+                    sampled = label_indices[perm]
+                else:
+                    # Use all available
+                    sampled = label_indices
+                
+                sampled_indices.append(sampled)
+            
+            # Concatenate all sampled indices
+            all_indices = torch.cat(sampled_indices)
+            return features[all_indices], labels[all_indices]
+        
+        source_feat_vis, source_labels_vis = stratified_sample(
+            source_feat, source_labels, samples_per_class)
+        target_feat_vis, target_labels_vis = stratified_sample(
+            target_feat, target_labels, samples_per_class)
         
         # t-SNE plot with class labels (use decoder_ prefix to distinguish from encoder plots)
         if self.enable_tsne:
             try:
                 tsne_path = join(epoch_dir, 'decoder_tsne_classes.png')
+                # Don't pass n_samples - already stratified sampled above
                 plot_tsne(source_feat_vis, target_feat_vis, 
                          source_labels_vis, target_labels_vis, 
-                         save_path=tsne_path, n_samples=max_points)
+                         save_path=tsne_path, n_samples=100000)  # High limit since already sampled
                 log.info(f"Generated decoder t-SNE plot: {tsne_path}")
             except Exception as e:
                 log.warning(f"Failed to generate decoder t-SNE plot: {e}")
@@ -265,7 +286,7 @@ class DecoderClassMonitor:
                 umap_path = join(epoch_dir, 'decoder_umap_classes.png')
                 umap_result = plot_umap(source_feat_vis, target_feat_vis,
                                        source_labels_vis, target_labels_vis, 
-                                       save_path=umap_path, n_samples=max_points)
+                                       save_path=umap_path, n_samples=100000)  # High limit since already sampled
                 if umap_result:
                     log.info(f"Generated decoder UMAP plot: {umap_path}")
             except Exception as e:

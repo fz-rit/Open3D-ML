@@ -1,21 +1,25 @@
 dataset:
   name: Semantic3DUnified
   dataset_path: /shared/rc/mangrove/data/Semantic3D/all_remapped/
-  cache_dir: ./logs/cache_kpconv_semantic3dunified/
+  cache_dir: ./logs/cache_semantic3dunified_grid06/
   class_weights: [8094, 14, 1981, 1969]
-  ignored_label_inds:
-  - 0
-  test_result_folder: ./test
+  # ignored_label_inds:
+  # - 0
+  # test_result_folder: ./test
   use_cache: true
   train_ratio: 0.7
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
-  steps_per_epoch_train: 256
-  steps_per_epoch_valid: 128
+  # DATALOADER ITERATIONS CONFIGURATION
+  # Number of weight updates (batches) per epoch.
+  # KPConv uses ConcatBatcher - actual batch points vary based on batch_limit.
+  dataloader_iterations_per_epoch_train: 150
+  dataloader_iterations_per_epoch_valid: 10
 model:
   name: KPFCNN
-  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/KPFCNN_Semantic3DUnified_torch/checkpoint/model_epoch0060_2025-12-04_00-27-02.pth
+  # ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/KPFCNN_Semantic3DUnified_torch/checkpoint/model_epoch0060_2025-12-04_00-27-02.pth
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/KPFCNN_Semantic3DUnified_torch/checkpoint/best_model_epoch0059_2025-12-11_22-12-37.pth
   KP_extent: 1.2
   KP_influence: linear
   aggregation_mode: sum
@@ -47,7 +51,7 @@ model:
   - true
   - false
   - false
-  batch_limit: 10000
+  batch_limit: 1000000
   batch_norm_momentum: 0.98
   batcher: ConcatBatcher
   conv_radius: 2.5
@@ -56,41 +60,42 @@ model:
   deform_radius: 6.0
   density_parameter: 5.0
   first_features_dim: 128
-  first_subsampling_dl: 0.03
+  first_subsampling_dl: 0.06
   fixed_kernel_points: center
   ignored_label_inds: [0]
   in_features_dim: 3
   in_points_dim: 3
   in_radius: 6.0
   lbl_values: [0, 1, 2, 3, 4]
-  min_in_points: 5120
-  max_in_points: 20480
+  min_in_points: 10240
+  max_in_points: 40960
   modulated: false
   num_classes: 4
   num_kernel_points: 15
   num_layers: 5
   repulse_extent: 1.2
   use_batch_norm: true
+  is_resume: true
 pipeline:
   name: SemanticSegmentation
-  adam_lr: 0.01
-  batch_size: 1
+  # adam_lr: 0.01
+  batch_size: 18
   learning_rate: 0.01
-  lr_decays: 0.98477
+  lr_decays: 0.985
   deform_lr_factor: 0.1
   main_log_dir: /home/fzhcis/mylab/Open3D-ML/logs
   num_workers: 0
   pin_memory: false
-  max_epoch: 200
-  save_ckpt_freq: 20
+  max_epoch: 100
+  save_ckpt_freq: 10
   scheduler_gamma: 0.95
-  test_batch_size: 1
+  test_batch_size: 24
   train_sum_dir: train_log
-  val_batch_size: 1
+  val_batch_size: 24
   weight_decay: 0.001
   early_stopping:
     enabled: true
-    patience: 30
+    patience: 5
     min_delta: 0.001
     monitor: 'val_iou'
   summary:

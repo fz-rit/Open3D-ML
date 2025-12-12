@@ -2,7 +2,7 @@ dataset:
   name: Waymo
   dataset_path: # path/to/your/dataset
   cache_dir: ./logs/cache
-  steps_per_epoch_train: 4000
+  dataloader_iterations_per_epoch_train: 4000
 
 model:
   name: PointPillars

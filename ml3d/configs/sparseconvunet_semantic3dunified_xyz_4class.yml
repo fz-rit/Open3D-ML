@@ -9,8 +9,8 @@ dataset:
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
-  steps_per_epoch_train: 256
-  steps_per_epoch_valid: 128
+  dataloader_iterations_per_epoch_train: 256
+  dataloader_iterations_per_epoch_valid: 128
   sampler:
     name: 'SemSegRandomSampler'
 model:

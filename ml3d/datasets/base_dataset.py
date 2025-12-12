@@ -52,6 +52,53 @@ class BaseDataset(ABC):
         self.cfg = Config(kwargs)
         self.name = self.cfg.name
         self.rng = np.random.default_rng(kwargs.get('seed', None))
+        
+        # Optional: Calculate dataset statistics on initialization
+        if kwargs.get('calculate_statistics', False):
+            self._calculate_and_log_statistics(
+                splits=kwargs.get('statistics_splits', ['train']),
+                save_dir=kwargs.get('statistics_save_dir', None),
+                sample_limit=kwargs.get('statistics_sample_limit', None)
+            )
+    
+    def _calculate_and_log_statistics(self, splits=['train'], save_dir=None, sample_limit=None):
+        """
+        Calculate and log dataset statistics for the specified splits.
+        
+        Args:
+            splits: List of splits to analyze (e.g., ['train', 'validation'])
+            save_dir: Directory to save statistics visualizations
+            sample_limit: Maximum number of files to sample per split
+        """
+        try:
+            from ..utils.dataset_statistics import calculate_dataset_statistics
+            import logging
+            log = logging.getLogger(__name__)
+            
+            log.info("=" * 80)
+            log.info(f"CALCULATING DATASET STATISTICS FOR {self.name}")
+            log.info("=" * 80)
+            
+            for split in splits:
+                try:
+                    stats, recommendations = calculate_dataset_statistics(
+                        dataset=self,
+                        split=split,
+                        save_dir=save_dir,
+                        sample_limit=sample_limit,
+                        model_type='randlanet',  # Default, can be overridden
+                        target_points_per_window=10240,
+                        batch_size=16,
+                        gpu_memory_gb=40,
+                        coverage_ratio=3.0
+                    )
+                except Exception as e:
+                    log.warning(f"Failed to calculate statistics for {split} split: {e}")
+                    
+        except ImportError:
+            import logging
+            log = logging.getLogger(__name__)
+            log.warning("DatasetStatistics not available. Install matplotlib to enable statistics calculation.")
 
     @staticmethod
     @abstractmethod

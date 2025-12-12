@@ -5,48 +5,46 @@
 source_dataset:
   name: Semantic3DUnified
   dataset_path: /shared/rc/mangrove/data/Semantic3D/all_remapped/
-  cache_dir: ./logs/cache_kpconv_semantic3dunified/
-  class_weights: [8094, 14, 1981, 1969, 1774]
+  cache_dir: ./logs/cache_semantic3dunified_grid06/
+  class_weights: [8094, 14, 1981, 1969]
   ignored_label_inds: [0]
-  num_points: 65536
-  test_result_folder: ./test
   use_cache: true
   train_ratio: 0.7
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
+  dataloader_iterations_per_epoch_train: 50
+  dataloader_iterations_per_epoch_valid: 10
 
 target_dataset:
   name: ForestSemantic
   dataset_path: /path/to/forestsemantic/data/  # UPDATE THIS PATH
   cache_dir: ./logs/cache_kpconv_forestsemantic/
-  class_weights: [250789, 2377612, 20488, 179050, 196894, 1173042]
+  class_weights: [2377612, 20488, 179050, 196894]
   ignored_label_inds: [0]
-  num_points: 65536
-  test_result_folder: ./test_forestsemantic
+  # num_points: 65536
+  # test_result_folder: ./test_forestsemantic
   use_cache: false
 
 model:
   name: KPFCNNDA
   batcher: ConcatBatcher
-  ckpt_path: # Optional: path to pretrained model on source domain
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/KPFCNN_Semantic3DUnified_torch/checkpoint/best_model_epoch0059_2025-12-11_22-12-37.pth
   
   # KPConv architecture
-  num_classes: 5
+  num_classes: 4
   ignored_label_inds: [0]
-  in_features_dim: 1  # 1 for intensity, 4 for RGB+intensity
-  in_radius: 4.0
+  in_features_dim: 3
+  in_points_dim: 3
+  in_radius: 6.0
   architecture:
     - simple
     - resnetb
     - resnetb_strided
     - resnetb
-    - resnetb
     - resnetb_strided
     - resnetb
-    - resnetb
     - resnetb_strided
-    - resnetb
     - resnetb
     - resnetb_strided
     - resnetb
@@ -61,6 +59,7 @@ model:
   
   # KPConv parameters
   num_kernel_points: 15
+  num_layers: 5
   first_subsampling_dl: 0.06
   conv_radius: 2.5
   deform_radius: 6.0
@@ -69,8 +68,10 @@ model:
   aggregation_mode: sum
   first_features_dim: 128
   use_batch_norm: true
-  batch_norm_momentum: 0.02
+  batch_norm_momentum: 0.98
   modulated: false
+  density_parameter: 5.0
+  fixed_kernel_points: center
   
   # Deformable convolution parameters
   deform_fitting_mode: point2point
@@ -78,19 +79,18 @@ model:
   repulse_extent: 1.2
   
   # Batch parameters
-  batch_num: 6  # Reduced for DA
-  batch_limit: 20000
-  val_batch_num: 6
-  max_in_points: 100000
+  batch_limit: 1000000
+  min_in_points: 10240
+  max_in_points: 40960
   
   # Augmentation
   augment_scale_anisotropic: true
   augment_symmetries: [true, false, false]
   augment_rotation: vertical
-  augment_scale_min: 0.8
-  augment_scale_max: 1.2
+  augment_scale_min: 0.9
+  augment_scale_max: 1.1
   augment_noise: 0.001
-  augment_color: 0.8
+  augment_color: 1.0
   
   # Domain adaptation settings
   return_features: true
@@ -109,30 +109,30 @@ pipeline:
   target_labeled_ratio: 0.0
   
   # KPConv-specific training parameters
-  learning_rate: 0.001
+  learning_rate: 0.0001
+  lr_decays: 0.985
   deform_lr_factor: 0.1
-  momentum: 0.98
   weight_decay: 0.001
-  scheduler_gamma: 0.995
-  grad_clip_norm: 100.0
+  scheduler_gamma: 0.95
   
   # Batch and epoch settings
-  batch_size: 1  # KPConv uses ConcatBatcher, effective batch in model config
-  val_batch_size: 1
-  test_batch_size: 1
-  num_workers: 2
-  max_epoch: 200
+  batch_size: 12
+  val_batch_size: 24
+  test_batch_size: 24
+  num_workers: 0
+  pin_memory: false
+  max_epoch: 100
   save_ckpt_freq: 10
   
   # Directories
-  main_log_dir: ./logs
+  main_log_dir: /home/fzhcis/mylab/Open3D-ML/logs
   train_sum_dir: train_log
-  is_resume: false
+  is_resume: true
   
   # Early stopping
   early_stopping:
     enabled: true
-    patience: 50
+    patience: 5
     min_delta: 0.001
     monitor: 'val_iou'
   

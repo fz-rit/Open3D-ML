@@ -206,7 +206,9 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
             transform=model.transform,
             sampler=source_train_sampler,
             use_cache=self.source_dataset.cfg.use_cache,
-            steps_per_epoch=self.source_dataset.cfg.get('steps_per_epoch_train', None)
+            dataloader_iterations_per_epoch=self.source_dataset.cfg.get(
+                'dataloader_iterations_per_epoch_train', None),
+            batch_size=self.cfg.batch_size
         )
 
         source_train_loader = DataLoader(
@@ -229,7 +231,9 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
             transform=model.transform,
             sampler=source_valid_sampler,
             use_cache=self.source_dataset.cfg.use_cache,
-            steps_per_epoch=self.source_dataset.cfg.get('steps_per_epoch_valid', None)
+            dataloader_iterations_per_epoch=self.source_dataset.cfg.get(
+                'dataloader_iterations_per_epoch_valid', None),
+            batch_size=self.cfg.val_batch_size
         )
 
         source_valid_loader = DataLoader(
@@ -251,8 +255,10 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
             preprocess=model.preprocess,
             transform=model.transform,
             sampler=target_train_sampler,
-            use_cache=self.target_dataset.cfg.get('use_cache', False),
-            steps_per_epoch=self.source_dataset.cfg.get('steps_per_epoch_train', None)
+            use_cache=self.source_dataset.cfg.use_cache,
+            dataloader_iterations_per_epoch=self.source_dataset.cfg.get(
+                'dataloader_iterations_per_epoch_train', None),
+            batch_size=self.cfg.batch_size
         )
 
         target_train_loader = DataLoader(
@@ -281,7 +287,8 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
                 transform=model.transform,
                 sampler=target_valid_sampler,
                 use_cache=self.target_dataset.cfg.get('use_cache', False),
-                steps_per_epoch=target_steps
+                dataloader_iterations_per_epoch=target_steps,
+                batch_size=self.cfg.val_batch_size
             )
 
             target_valid_loader = DataLoader(
@@ -298,7 +305,16 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
         self.optimizer, self.scheduler = model.get_optimizer(self.cfg)
 
         is_resume = model.cfg.get('is_resume', False)
-        start_epoch = self.load_ckpt(model.cfg.ckpt_path, is_resume=is_resume)
+        # For domain adaptation: load model weights but use NEW learning rate from config
+        if is_resume and model.cfg.ckpt_path:
+            log.info("Loading pretrained model weights for domain adaptation...")
+            ckpt = torch.load(model.cfg.ckpt_path, map_location=self.device)
+            self.model.load_state_dict(ckpt['model_state_dict'])
+            log.info(f"Loaded model weights from {model.cfg.ckpt_path}")
+            log.info("Using NEW learning rate and scheduler from DA config (not loading optimizer state)")
+            start_epoch = 0  # Start DA training from epoch 0
+        else:
+            raise ValueError("For domain adaptation, provide a pretrained model checkpoint via cfg.ckpt_path")
 
         # Sanity check parameters/BN stats after loading checkpoint
         model.check_finite(reset_bn=True, raise_on_nan=True, prefix="post-load")
@@ -351,6 +367,84 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
         self.save_config(writer)
         log.info(f"Writing summary in {self.tensorboard_dir}")
         record_summary = self.cfg.get('summary', {}).get('record_for', [])
+
+        # =========================================================================================
+        # INITIAL EVALUATION: Compute metrics and visualizations BEFORE training starts (epoch -1)
+        # =========================================================================================
+        log.info("=" * 80)
+        log.info("INITIAL EVALUATION: Analyzing pretrained model before domain adaptation training")
+        log.info("=" * 80)
+        
+        # Run initial monitoring at "epoch -1" to visualize pretrained model state
+        log.info("Running initial domain adaptation monitoring (encoder features)...")
+        self.monitor.run_monitoring(
+            epoch=-1,  # Use -1 to indicate pre-training state
+            source_loader=source_train_loader,
+            target_loader=target_train_loader,
+            model=model,
+            device=self.device,
+            source_val_iou=0.0,  # Will be computed below
+            target_val_iou=0.0   # Will be computed below
+        )
+        
+        # Run initial decoder class monitoring
+        log.info("Running initial decoder class monitoring...")
+        self.decoder_monitor.run_monitoring(
+            epoch=-1,
+            source_loader=source_valid_loader,
+            target_loader=target_valid_loader if target_valid_loader else target_train_loader,
+            model=model,
+            device=self.device
+        )
+        
+        # Evaluate initial source validation IoU
+        log.info("Evaluating pretrained model on SOURCE validation set...")
+        model.trans_point_sampler = source_valid_sampler.get_point_sampler()
+        initial_source_metric = SemSegMetric()
+        model.eval()
+        with torch.no_grad():
+            for step, inputs in enumerate(source_valid_loader):
+                if hasattr(inputs['data'], 'to'):
+                    inputs['data'].to(self.device)
+                results = model(inputs['data'], return_intermediate_features=False)
+                if isinstance(results, tuple):
+                    results = results[0]
+                loss, gt_labels, predict_scores = model.get_loss(Loss, results, inputs, self.device)
+                if predict_scores.size()[-1] > 0:
+                    initial_source_metric.update(predict_scores, gt_labels)
+        
+        initial_source_iou = initial_source_metric.iou()
+        if initial_source_iou is not None:
+            log.info(f"Initial SOURCE validation IoU: {initial_source_iou[-1]:.4f}")
+        
+        # Evaluate initial target validation IoU
+        initial_target_iou_val = 0.0
+        if target_valid_loader is not None:
+            log.info("Evaluating pretrained model on TARGET validation set...")
+            initial_target_metric = SemSegMetric()
+            with torch.no_grad():
+                for step, inputs in enumerate(target_valid_loader):
+                    if step >= self.num_target_validate_batch:
+                        break
+                    if hasattr(inputs['data'], 'to'):
+                        inputs['data'].to(self.device)
+                    results = model(inputs['data'], return_intermediate_features=False)
+                    if isinstance(results, tuple):
+                        results = results[0]
+                    loss, gt_labels, predict_scores = model.get_loss(Loss, results, inputs, self.device)
+                    if predict_scores.size()[-1] > 0:
+                        initial_target_metric.update(predict_scores, gt_labels)
+            
+            initial_target_iou = initial_target_metric.iou()
+            if initial_target_iou is not None:
+                initial_target_iou_val = initial_target_iou[-1]
+                log.info(f"Initial TARGET validation IoU: {initial_target_iou_val:.4f}")
+                log.info(f"Domain gap (Source - Target IoU): {initial_source_iou[-1] - initial_target_iou_val:.4f}")
+        
+        log.info("=" * 80)
+        log.info("Initial evaluation complete. Check epoch_-0001/ folder for visualizations.")
+        log.info("=" * 80)
+        # =========================================================================================
 
         log.info("Started domain adaptation training")
 

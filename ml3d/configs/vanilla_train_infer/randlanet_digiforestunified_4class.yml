@@ -1,0 +1,38 @@
+dataset:
+  name: DigiForestUnified
+  dataset_path: /home/fzhcis/data/DigiForests/aggregate_outputs/subsamplegrid06
+  labels_path: /home/fzhcis/data/DigiForests/aggregate_outputs/subsamplegrid06
+  cache_dir: ./logs/cache_digiforestunified_grid06/
+  class_weights: [66, 37, 58, 74]
+  ignored_label_inds: [0]
+  # num_points: 10240
+  test_result_folder: ./test
+  use_cache: true
+  # sampler:
+  #   name: 'SemSegSpatiallyRegularSampler'  # Systematic grid-based sampling for faster inference
+model:
+  name: RandLANet
+  batcher: DefaultBatcher
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/best_model_epoch0019_2025-12-11_03-19-49.pth
+  num_neighbors: 16
+  num_layers: 5
+  num_points: 40960
+  num_classes: 4
+  ignored_label_inds: [0]
+  sub_sampling_ratio: [4, 4, 4, 4, 2]
+  in_channels: 3
+  dim_features: 8
+  dim_output: [16, 64, 128, 256, 512]
+  grid_size: 0.06
+
+pipeline:
+  name: SemanticSegmentation
+  batch_size: 24
+  num_workers: 0
+  main_log_dir: ./logs
+  test_batch_size: 24
+  summary:
+    record_for: []
+    max_pts:
+    use_reference: false
+    max_outputs: 1

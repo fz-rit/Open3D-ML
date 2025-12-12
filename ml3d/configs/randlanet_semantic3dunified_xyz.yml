@@ -12,8 +12,8 @@ dataset:
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
-  steps_per_epoch_train: 64
-  steps_per_epoch_valid: 24
+  dataloader_iterations_per_epoch_train: 64
+  dataloader_iterations_per_epoch_valid: 24
 model:
   name: RandLANet
   batcher: DefaultBatcher

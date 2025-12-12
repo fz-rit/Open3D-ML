@@ -5,9 +5,12 @@ from .log import LogRecord, get_runid, code2md
 from .builder import (MODEL, PIPELINE, DATASET, SAMPLER, get_module,
                       convert_framework_name, convert_device_name)
 from .dataset_helper import get_hash, make_dir, Cache
+from .dataset_statistics import (DatasetStatistics, 
+                                 calculate_dataset_statistics)
 
 __all__ = [
     'Config', 'make_dir', 'LogRecord', 'MODEL', 'SAMPLER', 'PIPELINE',
     'DATASET', 'get_module', 'convert_framework_name', 'get_hash', 'make_dir',
-    'Cache', 'convert_device_name'
+    'Cache', 'convert_device_name', 'DatasetStatistics', 
+    'calculate_dataset_statistics'
 ]

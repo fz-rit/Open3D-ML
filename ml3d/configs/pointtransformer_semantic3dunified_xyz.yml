@@ -11,8 +11,8 @@ dataset:
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
-  steps_per_epoch_train: 100
-  steps_per_epoch_valid: 40
+  dataloader_iterations_per_epoch_train: 100
+  dataloader_iterations_per_epoch_valid: 40
   num_points: 40960
 model:
   name: PointTransformer

@@ -228,52 +228,6 @@ class DomainAdaptationTrainer:
             if skip_ratio > 0.5:
                 log.warning(f"More than 50% of batches skipped! Consider checking your data for sufficient valid labels.")
         
-        # # Log batch label histogram statistics
-        # if len(self.batch_label_histograms) > 0:
-        #     log.info(f"\n{'='*60}")
-        #     log.info(f"BATCH LABEL HISTOGRAM SUMMARY (Epoch {epoch})")
-        #     log.info(f"{'='*60}")
-            
-        #     skipped_count = sum(1 for h in self.batch_label_histograms if h['skipped'])
-        #     valid_count = len(self.batch_label_histograms) - skipped_count
-            
-        #     log.info(f"Total batches: {len(self.batch_label_histograms)} (Valid: {valid_count}, Skipped: {skipped_count})")
-        #     log.info(f"\nFirst 10 batches:")
-        #     for i, hist_data in enumerate(self.batch_label_histograms[:10]):
-        #         status = "SKIPPED" if hist_data['skipped'] else "OK"
-        #         hist = hist_data['histogram']
-        #         total = hist_data['total_points']
-        #         percentages = {label: f"{count/total*100:.1f}%" for label, count in hist.items()}
-        #         log.info(f"  Batch {hist_data['batch']:2d} [{status:7s}]: {hist} -> {percentages}")
-            
-        #     if len(self.batch_label_histograms) > 10:
-        #         log.info(f"\nLast 5 batches:")
-        #         for hist_data in self.batch_label_histograms[-5:]:
-        #             status = "SKIPPED" if hist_data['skipped'] else "OK"
-        #             hist = hist_data['histogram']
-        #             total = hist_data['total_points']
-        #             percentages = {label: f"{count/total*100:.1f}%" for label, count in hist.items()}
-        #             log.info(f"  Batch {hist_data['batch']:2d} [{status:7s}]: {hist} -> {percentages}")
-            
-        #     # Compute aggregate statistics
-        #     label_sums = {}
-        #     for hist_data in self.batch_label_histograms:
-        #         if not hist_data['skipped']:  # Only count valid batches
-        #             for label, count in hist_data['histogram'].items():
-        #                 label_sums[label] = label_sums.get(label, 0) + count
-            
-        #     if label_sums:
-        #         total_valid_points = sum(label_sums.values())
-        #         log.info(f"\nAggregate statistics (valid batches only):")
-        #         log.info(f"  Total points: {total_valid_points}")
-        #         for label in sorted(label_sums.keys()):
-        #             count = label_sums[label]
-        #             pct = count / total_valid_points * 100
-        #             log.info(f"  Label {label}: {count:8d} ({pct:5.2f}%)")
-            
-        #     log.info(f"{'='*60}\n")
-        
-        # Step scheduler
         self.scheduler.step()
         
         # Calculate average adaptive weight for this epoch

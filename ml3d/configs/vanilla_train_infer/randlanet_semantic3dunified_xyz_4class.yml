@@ -10,18 +10,23 @@ dataset:
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
-  steps_per_epoch_train: 128
-  steps_per_epoch_valid: 64
+  
+  # DATALOADER ITERATIONS CONFIGURATION
+  # Number of weight updates (batches) per epoch.
+  # Formula: iterations = (coverage_ratio × total_points) / (batch_size × num_points)
+  # Example: (3.0 × 48000k) / (24 × 40k) =  150 iterations/epoch
+  dataloader_iterations_per_epoch_train: 150
+  dataloader_iterations_per_epoch_valid: 10
   sampler:
     name: 'SemSegRandomSampler'
 model:
   name: RandLANet
   batcher: DefaultBatcher
   # ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/model_epoch0070_2025-12-03_22-50-31.pth
-  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANetDA_Semantic3DUnified_torch/checkpoint/model_epoch0095_2025-12-09_02-31-07.pth
-  num_neighbors: 128
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/best_model_epoch0019_2025-12-11_03-19-49.pth
+  num_neighbors: 16
   num_layers: 5
-  num_points: 10240
+  num_points: 40960
   num_classes: 4
   ignored_label_inds: [0]
   sub_sampling_ratio: [4, 4, 4, 4, 2]
@@ -49,18 +54,18 @@ pipeline:
   name: SemanticSegmentation
   optimizer:
     lr: 0.0005
-  batch_size: 16
-  num_workers: 8
+  batch_size: 24
+  num_workers: 0
   main_log_dir: /home/fzhcis/mylab/Open3D-ML/logs
-  max_epoch: 300
+  max_epoch: 100
   scheduler_gamma: 0.995
-  test_batch_size: 16
+  test_batch_size: 24
   train_sum_dir: train_log
-  val_batch_size: 16
+  val_batch_size: 24
   save_ckpt_freq: 10
   early_stopping:
     enabled: true
-    patience: 30
+    patience: 5
     min_delta: 0.001
     monitor: 'val_iou'
   summary:

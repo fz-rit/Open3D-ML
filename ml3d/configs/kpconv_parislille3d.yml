@@ -9,8 +9,8 @@ dataset:
   val_files:
   - Lille2.ply
   use_cache: True
-  steps_per_epoch_train: 40
-  steps_per_epoch_valid: 10
+  dataloader_iterations_per_epoch_train: 40
+  dataloader_iterations_per_epoch_valid: 10
   sampler:
     name: SemSegSpatiallyRegularSampler
 model:

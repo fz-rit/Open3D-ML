@@ -75,12 +75,12 @@ class DomainAdaptationMonitor:
         # Extract features from both domains
         log.info("Extracting source domain features...")
         source_features_list = self._extract_features(
-            source_loader, model, device, max_batches=20
+            source_loader, model, device, max_batches=10
         )
         
         log.info("Extracting target domain features...")
         target_features_list = self._extract_features(
-            target_loader, model, device, max_batches=20
+            target_loader, model, device, max_batches=10
         )
         
         if not source_features_list or not target_features_list:
@@ -110,7 +110,7 @@ class DomainAdaptationMonitor:
         
         log.info(f"Domain monitoring complete for epoch {epoch}")
     
-    def _extract_features(self, dataloader, model, device, max_batches=20):
+    def _extract_features(self, dataloader, model, device, max_batches=10):
         """
         Extract features from a dataloader.
         

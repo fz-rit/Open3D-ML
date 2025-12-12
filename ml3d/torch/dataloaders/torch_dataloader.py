@@ -21,7 +21,8 @@ class TorchDataloader(Dataset):
                  transform=None,
                  sampler=None,
                  use_cache=True,
-                 steps_per_epoch=None,
+                 dataloader_iterations_per_epoch=None,
+                 batch_size=1,
                  cache_convert=None,
                  **kwargs):
         """Initialize.
@@ -31,14 +32,16 @@ class TorchDataloader(Dataset):
             preprocess: The model's pre-process method.
             transform: The model's transform method.
             use_cache: Indicates if preprocessed data should be cached.
-            steps_per_epoch: The number of steps per epoch that indicates the batches of samples to train. If it is None, then the step number will be the number of samples in the data.
+            dataloader_iterations_per_epoch: Number of dataloader iterations (batches) per epoch. If None, defaults to number of samples in dataset.
+            batch_size: Batch size to convert iterations to samples.
 
         Returns:
             class: The corresponding class.
         """
         self.dataset = dataset
         self.preprocess = preprocess
-        self.steps_per_epoch = steps_per_epoch
+        self.dataloader_iterations_per_epoch = dataloader_iterations_per_epoch
+        self.batch_size = batch_size
         self.cache_convert = cache_convert
 
         if preprocess is not None and use_cache:
@@ -89,9 +92,9 @@ class TorchDataloader(Dataset):
         return inputs
 
     def __len__(self):
-        """Returns the number of steps for an epoch."""
-        if self.steps_per_epoch is not None:
-            steps_per_epoch = self.steps_per_epoch
+        """Returns the number of samples to draw per epoch (iterations * batch_size)."""
+        if self.dataloader_iterations_per_epoch is not None:
+            # Convert iterations to samples: PyTorch DataLoader divides this by batch_size
+            return self.dataloader_iterations_per_epoch * self.batch_size
         else:
-            steps_per_epoch = len(self.dataset)
-        return steps_per_epoch
+            return len(self.dataset)

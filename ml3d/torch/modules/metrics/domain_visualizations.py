@@ -19,7 +19,7 @@ def plot_tsne(source_features: torch.Tensor,
               target_labels: Optional[torch.Tensor] = None,
               save_path: str = 'tsne_plot.png',
               perplexity: int = 30,
-              n_samples: int = 2000) -> str:
+              n_samples: int = 30000) -> str:
     """
     Create t-SNE visualization of source and target features.
     
@@ -126,7 +126,7 @@ def plot_umap(source_features: torch.Tensor,
               target_labels: Optional[torch.Tensor] = None,
               save_path: str = 'umap_plot.png',
               n_neighbors: int = 15,
-              n_samples: int = 2000) -> str:
+              n_samples: int = 30000) -> str:
     """
     Create UMAP visualization of source and target features.
     
@@ -234,7 +234,7 @@ def plot_umap(source_features: torch.Tensor,
 def plot_feature_distributions(source_features: torch.Tensor,
                                target_features: torch.Tensor,
                                save_path: str = 'feature_distributions.png',
-                               n_features: int = 8) -> str:
+                               n_features: int = 48) -> str:
     """
     Plot histograms comparing source and target feature distributions.
     
@@ -249,7 +249,7 @@ def plot_feature_distributions(source_features: torch.Tensor,
     """
     d = min(source_features.size(1), n_features)
     
-    fig, axes = plt.subplots(2, 4, figsize=(16, 8))
+    fig, axes = plt.subplots(6, 8, figsize=(24, 18))
     axes = axes.flatten()
     
     for i in range(d):
@@ -264,7 +264,7 @@ def plot_feature_distributions(source_features: torch.Tensor,
         ax.legend(fontsize=8)
         ax.grid(alpha=0.3)
     
-    plt.suptitle('Feature Distribution Comparison (First 8 Dims)', fontsize=14, fontweight='bold')
+    plt.suptitle('Feature Distribution Comparison (First 48 Dims)', fontsize=14, fontweight='bold')
     plt.tight_layout()
     plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.close()

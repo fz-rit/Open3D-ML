@@ -272,7 +272,7 @@ class SemanticSegmentation(BasePipeline):
     def update_tests(self, sampler, inputs, results):
         """Update tests using sampler, inputs, and results."""
         split = sampler.split
-        end_threshold = 0.5
+        end_threshold = 0.3  # Lower threshold (0.3 vs 0.5) to avoid wasting computation on last few points
         if self.curr_cloud_id != sampler.cloud_id:
             self.curr_cloud_id = sampler.cloud_id
             num_points = sampler.possibilities[sampler.cloud_id].shape[0]
@@ -348,8 +348,9 @@ class SemanticSegmentation(BasePipeline):
                                       transform=model.transform,
                                       sampler=train_sampler,
                                       use_cache=dataset.cfg.use_cache,
-                                      steps_per_epoch=dataset.cfg.get(
-                                          'steps_per_epoch_train', None))
+                                      dataloader_iterations_per_epoch=dataset.cfg.get(
+                                          'dataloader_iterations_per_epoch_train', None),
+                                      batch_size=cfg.batch_size)
 
         train_loader = DataLoader(
             train_split,
@@ -365,13 +366,14 @@ class SemanticSegmentation(BasePipeline):
         valid_dataset = dataset.get_split('validation')
         valid_sampler = valid_dataset.sampler
         valid_split = TorchDataloader(dataset=valid_dataset,
-                                      preprocess=model.preprocess,
-                                      transform=model.transform,
-                                      sampler=valid_sampler,
-                                      use_cache=dataset.cfg.use_cache,
-                                      steps_per_epoch=dataset.cfg.get(
-                                          'steps_per_epoch_valid', None))
-
+                                       preprocess=model.preprocess,
+                                       transform=model.transform,
+                                       sampler=valid_sampler,
+                                       use_cache=dataset.cfg.use_cache,
+                                       dataloader_iterations_per_epoch=dataset.cfg.get(
+                                           'dataloader_iterations_per_epoch_valid', None),
+                                       batch_size=cfg.val_batch_size)
+        
         valid_loader = DataLoader(
             valid_split,
             batch_size=cfg.val_batch_size,
@@ -508,7 +510,7 @@ class SemanticSegmentation(BasePipeline):
             if len(missing_classes) > 0:
                 log.warning(f"Epoch {epoch}: Validation set missing {len(missing_classes)}/{len(val_hist)} classes: {missing_classes}. "
                             f"mIoU only computed over {len(val_hist) - len(missing_classes)} classes. "
-                            f"Consider increasing steps_per_epoch_valid or validation set size.")
+                            f"Consider increasing dataloader_iterations_per_epoch_valid or validation set size.")
                 
             # Save best checkpoint based on validation IoU
             current_iou = self.metric_val.iou()[-1]

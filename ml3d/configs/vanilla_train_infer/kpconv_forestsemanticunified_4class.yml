@@ -1,31 +1,16 @@
 dataset:
-  name: Mangrove3D
-  dataset_path: /home/fzhcis/data/mangrove3d_pcd/
-  cache_dir: ./logs/cache_mangrove3d/
-  class_weights: [12348000, 10424000, 61446000, 1790000, 373000]
-  ignored_label_inds: []
-  test_result_folder: ./test
+  name: ForestSemantic
+  dataset_path: /shared/rc/mangrove/data/ForestSemantic/
+  cache_dir: ./logs/cache_forestsemantic_grid06/
+  class_weights: [2377612, 20488, 179050, 196894]
+  # num_points: 10240
   use_cache: true
-  val_split_ratio: 0.1
-  val_split_seed: 42
-  # Mangrove3D-specific options
-  use_features: true
-  feature_first_col: nx
-  feature_last_col: nz
-  pcd_dir_name: pcd
-  label_dir_name: label
-  label_to_names:
-    0: Ground_and_water
-    1: Stem
-    2: Canopy
-    3: Roots
-    4: Object
-  dataloader_iterations_per_epoch_train: 500
-  dataloader_iterations_per_epoch_valid: 50
+
+
 
 model:
   name: KPFCNN
-  ckpt_path: # path/to/your/checkpoint
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/KPFCNN_Semantic3DUnified_torch/checkpoint/best_model_epoch0059_2025-12-11_22-12-37.pth
   KP_extent: 1.2
   KP_influence: linear
   aggregation_mode: sum
@@ -57,7 +42,7 @@ model:
   - true
   - false
   - false
-  batch_limit: 10000
+  batch_limit: 1000000
   batch_norm_momentum: 0.98
   batcher: ConcatBatcher
   conv_radius: 2.5
@@ -68,37 +53,28 @@ model:
   first_features_dim: 128
   first_subsampling_dl: 0.06
   fixed_kernel_points: center
-  ignored_label_inds: []
-  in_features_dim: 3  # nx, ny, nz features
+  ignored_label_inds: [0]
+  in_features_dim: 3
   in_points_dim: 3
   in_radius: 6.0
   lbl_values: [0, 1, 2, 3, 4]
-  min_in_points: 5000
-  max_in_points: 10000
+  min_in_points: 10240
+  max_in_points: 40960
   modulated: false
-  num_classes: 5
+  num_classes: 4
   num_kernel_points: 15
   num_layers: 5
   repulse_extent: 1.2
   use_batch_norm: true
+  is_resume: true
+
 
 pipeline:
   name: SemanticSegmentation
-  adam_lr: 0.01
-  batch_size: 1
-  learning_rate: 0.01
-  lr_decays: 0.98477
-  deform_lr_factor: 0.1
-  main_log_dir: ./logs
-  max_epoch: 200
+  batch_size: 24
   num_workers: 0
-  pin_memory: false
-  save_ckpt_freq: 50
-  scheduler_gamma: 0.95
-  test_batch_size: 1
-  train_sum_dir: train_log
-  val_batch_size: 1
-  weight_decay: 0.001
+  main_log_dir: /home/fzhcis/mylab/Open3D-ML/logs
+  test_batch_size: 24
   summary:
     record_for: []
     max_pts:

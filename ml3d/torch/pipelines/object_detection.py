@@ -156,13 +156,15 @@ class ObjectDetection(BasePipeline):
         batcher = ConcatBatcher(device, model.cfg.name)
 
         valid_dataset = dataset.get_split('validation')
-        valid_split = TorchDataloader(dataset=valid_dataset,
+        train_split = TorchDataloader(dataset=train_dataset,
                                       preprocess=model.preprocess,
                                       transform=model.transform,
                                       use_cache=dataset.cfg.use_cache,
                                       shuffle=True,
-                                      steps_per_epoch=dataset.cfg.get(
-                                          'steps_per_epoch_valid', None))
+                                      dataloader_iterations_per_epoch=dataset.cfg.get(
+                                          'dataloader_iterations_per_epoch_train',
+                                          dataset.cfg.get('dataloader_iterations_per_epoch_train', None)),
+                                      batch_size=cfg.batch_size)
 
         if self.distributed:
             valid_sampler = torch.utils.data.distributed.DistributedSampler(
@@ -296,8 +298,9 @@ class ObjectDetection(BasePipeline):
                                       preprocess=model.preprocess,
                                       transform=model.transform,
                                       use_cache=dataset.cfg.use_cache,
-                                      steps_per_epoch=dataset.cfg.get(
-                                          'steps_per_epoch_train', None))
+                                      dataloader_iterations_per_epoch=dataset.cfg.get(
+                                          'dataloader_iterations_per_epoch_train',
+                                          dataset.cfg.get('dataloader_iterations_per_epoch_valid', None)))
 
         if self.distributed:
             train_sampler = torch.utils.data.distributed.DistributedSampler(

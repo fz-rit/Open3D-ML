@@ -8,16 +8,15 @@ source_dataset:
   cache_dir: ./logs/cache_semantic3dunified_grid06/
   class_weights: [8094, 14, 1981, 1969]
   ignored_label_inds: [0]
-  num_points: 10240  # Increased from 10240 to reduce batches with all ignored labels
   use_cache: true
   train_ratio: 0.7
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
-  steps_per_epoch_train: 64
-  steps_per_epoch_valid: 32
-  sampler:
-    name: 'SemSegRandomSampler'
+  dataloader_iterations_per_epoch_train: 50
+  dataloader_iterations_per_epoch_valid: 10
+  # sampler:
+  #   name: 'SemSegRandomSampler'
 
 target_dataset:
   name: ForestSemantic
@@ -25,18 +24,17 @@ target_dataset:
   cache_dir: ./logs/cache_forestsemantic_grid06/
   class_weights: [2377612, 20488, 179050, 196894]
   ignored_label_inds: [0]
-  num_points: 10240  # Match source dataset
   use_cache: true
-  sampler:
-    name: 'SemSegRandomSampler'
+  # sampler:
+  #   name: 'SemSegRandomSampler'
 
 model:
   name: RandLANetDA
   batcher: DefaultBatcher
-  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/best_model_epoch0067_2025-12-06_20-43-32.pth
-  num_neighbors: 128
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/best_model_epoch0019_2025-12-11_03-19-49.pth
+  num_neighbors: 16
   num_layers: 5
-  num_points: 10240  # Match dataset num_points
+  num_points: 40960  # Match dataset num_points
   num_classes: 4
   ignored_label_inds: [0]
   sub_sampling_ratio: [4, 4, 4, 4, 2]
@@ -77,30 +75,30 @@ pipeline:
   use_geodesic: false
   coral_loss_type: adaptive
   num_target_validate_batch: 10   # Target validation batches per epoch (0 disables)
-  debug_coral_loss: true  # Enable detailed CORAL loss debugging on first iteration
+  debug_coral_loss: false  # Enable detailed CORAL loss debugging on first iteration
   
   # Standard training parameters
   optimizer:
-    lr: 0.0003
-  batch_size: 8
+    lr: 0.00005
+  batch_size: 12
   num_workers: 0
   main_log_dir: ./logs
   max_epoch: 100
   scheduler_gamma: 0.995
   grad_clip_norm: 10.0  # Prevent gradient explosion
-  test_batch_size: 16
+  test_batch_size: 24
   train_sum_dir: train_log
-  val_batch_size: 16
+  val_batch_size: 24
   save_ckpt_freq: 5
-  monitor_freq: 2           # Encoder domain alignment monitoring frequency
-  decoder_monitor_freq: 2   # Decoder class distribution monitoring frequency
+  monitor_freq: 1           # Encoder domain alignment monitoring frequency
+  decoder_monitor_freq: 1   # Decoder class distribution monitoring frequency
   pin_memory: false
   enable_tsne: true 
   enable_umap: true 
   
   early_stopping:
     enabled: true
-    patience: 20
+    patience: 5
     min_delta: 0.001
     monitor: 'val_iou'
   
