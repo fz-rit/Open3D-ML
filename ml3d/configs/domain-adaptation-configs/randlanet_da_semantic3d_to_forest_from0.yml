@@ -1,6 +1,6 @@
 # Domain Adaptation Configuration: RandLANet [FULL MODE]
 # Source: Semantic3DUnified 
-# Target: DigiForestUnified 
+# Target: ForestSemantic 
 
 source_dataset:
   name: Semantic3DUnified
@@ -14,16 +14,19 @@ source_dataset:
   test_ratio: 0.15
   split_seed: 42
   dataloader_iterations_per_epoch_train: 10
-  dataloader_iterations_per_epoch_valid: 2
+  dataloader_iterations_per_epoch_valid: 5
+  # sampler:
+  #   name: 'SemSegRandomSampler'
 
 target_dataset:
-  name: DigiForestUnified
-  dataset_path: /home/fzhcis/data/DigiForests/aggregate_outputs/subsamplegrid06
-  labels_path: /home/fzhcis/data/DigiForests/aggregate_outputs/subsamplegrid06
-  cache_dir: ./logs/cache_digiforestunified_grid06/
-  class_weights: [66, 37, 58, 74]
+  name: ForestSemantic
+  dataset_path: /shared/rc/mangrove/data/ForestSemantic/
+  cache_dir: ./logs/cache_forestsemantic_grid06/
+  class_weights: [2377612, 20488, 179050, 196894]
   ignored_label_inds: [0]
   use_cache: true
+  # sampler:
+  #   name: 'SemSegRandomSampler'
 
 model:
   name: RandLANetDA
@@ -41,7 +44,7 @@ model:
   grid_size: 0.06
   return_features: true
   alignment_layers: [0, 2, 4]  # FULL: Multi-level alignment (tune based on pilot)
-  is_resume: true
+  is_resume: false
   augment:
     recenter:
       dim: [0, 1]
@@ -76,26 +79,26 @@ pipeline:
   
   # Standard training parameters
   optimizer:
-    lr: 0.00005
+    lr: 0.001
   batch_size: 12
   num_workers: 0
   main_log_dir: ./logs
-  max_epoch: 100
+  max_epoch: 200
   scheduler_gamma: 0.995
   grad_clip_norm: 10.0  # Prevent gradient explosion
   test_batch_size: 24
   train_sum_dir: train_log
   val_batch_size: 24
   save_ckpt_freq: 5
-  monitor_freq: 1           # Encoder domain alignment monitoring frequency
-  decoder_monitor_freq: 1   # Decoder class distribution monitoring frequency
+  monitor_freq: 3           # Encoder domain alignment monitoring frequency
+  decoder_monitor_freq: 3   # Decoder class distribution monitoring frequency
   pin_memory: false
   enable_tsne: true 
   enable_umap: true 
   
   early_stopping:
     enabled: true
-    patience: 5
+    patience: 10
     min_delta: 0.001
     monitor: 'val_iou'
   

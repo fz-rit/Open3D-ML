@@ -175,7 +175,7 @@ class DomainAdaptationTrainer:
             # Calculate adaptive weight to match scales
             # Clamp to [1, 100] to prevent extreme values
             adaptive_weight = self.seg_loss_ema / (self.coral_loss_ema + 1e-8)
-            adaptive_weight = torch.clamp(adaptive_weight, min=0.01, max=100.0)
+            adaptive_weight = torch.clamp(adaptive_weight, min=0.001, max=20.0)
             self.adaptive_weights.append(adaptive_weight.cpu().item())
             
             # Combined loss with adaptive weighting

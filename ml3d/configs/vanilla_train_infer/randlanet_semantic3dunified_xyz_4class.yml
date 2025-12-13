@@ -15,7 +15,7 @@ dataset:
   # Number of weight updates (batches) per epoch.
   # Formula: iterations = (coverage_ratio × total_points) / (batch_size × num_points)
   # Example: (3.0 × 48000k) / (24 × 40k) =  150 iterations/epoch
-  dataloader_iterations_per_epoch_train: 150
+  dataloader_iterations_per_epoch_train: 120
   dataloader_iterations_per_epoch_valid: 10
   sampler:
     name: 'SemSegRandomSampler'
@@ -53,13 +53,13 @@ model:
 pipeline:
   name: SemanticSegmentation
   optimizer:
-    lr: 0.0005
+    lr: 0.001
   batch_size: 24
   num_workers: 0
   main_log_dir: /home/fzhcis/mylab/Open3D-ML/logs
   max_epoch: 100
   scheduler_gamma: 0.995
-  test_batch_size: 24
+  # test_batch_size: 24
   train_sum_dir: train_log
   val_batch_size: 24
   save_ckpt_freq: 10

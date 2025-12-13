@@ -230,8 +230,8 @@ class DecoderClassMonitor:
         log.info(f"Generating decoder class visualizations (penultimate layer) "
                 f"(source: {source_feat.shape}, target: {target_feat.shape})")
         
-        # Stratified sampling: 8000 samples per class for balanced visualization
-        samples_per_class = 8000
+        # Stratified sampling: 4000 samples per class for balanced visualization
+        samples_per_class = 4000
         
         def stratified_sample(features, labels, n_per_class):
             """Sample n_per_class points from each class."""

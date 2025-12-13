@@ -578,7 +578,7 @@ class ConcatBatcher(object):
         Returns:
             class: the batched result
         """
-        if self.model == "KPConv" or self.model == "KPFCNN":
+        if self.model in ["KPConv", "KPFCNN", "KPFCNNDA"]:
             batching_result = KPConvBatch(batches)
             batching_result.to(self.device)
             return {'data': batching_result, 'attr': []}

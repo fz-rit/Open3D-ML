@@ -26,7 +26,7 @@ pipeline:
   batch_size: 24
   num_workers: 0
   main_log_dir: /home/fzhcis/mylab/Open3D-ML/logs
-  test_batch_size: 24
+  # test_batch_size: 24
   summary:
     record_for: []
     max_pts:

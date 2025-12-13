@@ -13,10 +13,8 @@ source_dataset:
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
-  dataloader_iterations_per_epoch_train: 50
-  dataloader_iterations_per_epoch_valid: 10
-  # sampler:
-  #   name: 'SemSegRandomSampler'
+  dataloader_iterations_per_epoch_train: 10
+  dataloader_iterations_per_epoch_valid: 4
 
 target_dataset:
   name: ForestSemantic
@@ -25,13 +23,11 @@ target_dataset:
   class_weights: [2377612, 20488, 179050, 196894]
   ignored_label_inds: [0]
   use_cache: true
-  # sampler:
-  #   name: 'SemSegRandomSampler'
 
 model:
   name: RandLANetDA
   batcher: DefaultBatcher
-  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/best_model_epoch0019_2025-12-11_03-19-49.pth
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/RandLANet_Semantic3DUnified_torch/checkpoint/model_epoch0030_2025-12-13_02-17-49.pth
   num_neighbors: 16
   num_layers: 5
   num_points: 40960  # Match dataset num_points
@@ -79,22 +75,22 @@ pipeline:
   
   # Standard training parameters
   optimizer:
-    lr: 0.00005
+    lr: 0.00002
   batch_size: 12
   num_workers: 0
   main_log_dir: ./logs
   max_epoch: 100
   scheduler_gamma: 0.995
   grad_clip_norm: 10.0  # Prevent gradient explosion
-  test_batch_size: 24
+  # test_batch_size: 24
   train_sum_dir: train_log
   val_batch_size: 24
   save_ckpt_freq: 5
-  monitor_freq: 1           # Encoder domain alignment monitoring frequency
-  decoder_monitor_freq: 1   # Decoder class distribution monitoring frequency
-  pin_memory: false
-  enable_tsne: true 
-  enable_umap: true 
+  monitor_freq: 3           # Encoder domain alignment monitoring frequency
+  decoder_monitor_freq: 3   # Decoder class distribution monitoring frequency
+  pin_memory: true
+  enable_tsne: false 
+  enable_umap: false 
   
   early_stopping:
     enabled: true

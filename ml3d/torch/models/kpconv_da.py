@@ -198,6 +198,12 @@ class KPFCNNDA(BaseModel):
             if 'upsample' in block or block == 'global_average':
                 break
 
+            # Detect change to next layer for skip connection
+            # MUST save skip dims BEFORE processing the block (matches base KPFCNN)
+            if np.any([tmp in block for tmp in ['pool', 'strided', 'upsample', 'global']]):
+                self.encoder_skips.append(block_i)
+                self.encoder_skip_dims.append(in_dim)
+
             # Get all params for this layer
             if block in ['max_pool', 'global_average']:
                 self.encoder_blocks.append(block_decider(
@@ -218,12 +224,6 @@ class KPFCNNDA(BaseModel):
                 layer += 1
                 r *= 2
                 out_dim *= 2
-
-            # Save all skip-connections in a list
-            if block in ['simple', 'simple_deformable', 'simple_invariant',
-                        'simple_equivariant']:
-                self.encoder_skips.append(block_i)
-                self.encoder_skip_dims.append(in_dim)
 
         #####################
         # List Decoder blocks
@@ -265,14 +265,29 @@ class KPFCNNDA(BaseModel):
                 out_dim = out_dim // 2
 
         if reduce_fc:
-            self.head_mlp = UnaryBlock(out_dim, self.C, use_batch_norm,
-                                      batch_norm_momentum)
-            self.head_softmax = nn.Identity()
+            self.head_mlp = UnaryBlock(out_dim,
+                                       cfg.first_features_dim // 2,
+                                       True,
+                                       cfg.batch_norm_momentum,
+                                       l_relu=cfg.get('l_relu', 0.1))
+            self.head_softmax = UnaryBlock(cfg.first_features_dim // 2,
+                                           self.C,
+                                           False,
+                                           1,
+                                           no_relu=True,
+                                           l_relu=cfg.get('l_relu', 0.1))
         else:
-            self.head_mlp = UnaryBlock(out_dim, out_dim, use_batch_norm,
-                                      batch_norm_momentum)
-            self.head_softmax = UnaryBlock(out_dim, self.C, use_batch_norm,
-                                          batch_norm_momentum, no_relu=True)
+            self.head_mlp = UnaryBlock(out_dim,
+                                       cfg.first_features_dim,
+                                       False,
+                                       0,
+                                       l_relu=cfg.get('l_relu', 0.1))
+            self.head_softmax = UnaryBlock(cfg.first_features_dim,
+                                           self.C,
+                                           False,
+                                           0,
+                                           no_relu=True,
+                                           l_relu=cfg.get('l_relu', 0.1))
 
         ################
         # Network Losses
@@ -595,10 +610,16 @@ class KPFCNNDA(BaseModel):
         # Apply transformations
         points = np.dot(points, R.T) * scale
         
-        if normals is not None:
-            normals = np.dot(normals, R.T)
-        
-        return points, None, normals, R, scale
+        if normals is None:
+            return points, None, normals, R, scale
+        else:
+            # Only apply if normals are 2D and have shape (N, 3)
+            if normals.ndim == 2 and normals.shape[1] == 3:
+                normals = np.dot(normals, R.T)
+            else:
+                # If normals are not the right shape, skip transformation
+                pass
+            return points, None, normals, R, scale
 
     def inference_begin(self, data):
         """Same as base KPFCNN."""

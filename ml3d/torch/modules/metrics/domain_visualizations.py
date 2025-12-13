@@ -19,7 +19,7 @@ def plot_tsne(source_features: torch.Tensor,
               target_labels: Optional[torch.Tensor] = None,
               save_path: str = 'tsne_plot.png',
               perplexity: int = 30,
-              n_samples: int = 30000) -> str:
+              n_samples: int = 5000) -> str:
     """
     Create t-SNE visualization of source and target features.
     
@@ -126,7 +126,7 @@ def plot_umap(source_features: torch.Tensor,
               target_labels: Optional[torch.Tensor] = None,
               save_path: str = 'umap_plot.png',
               n_neighbors: int = 15,
-              n_samples: int = 30000) -> str:
+              n_samples: int = 5000) -> str:
     """
     Create UMAP visualization of source and target features.
     
@@ -199,14 +199,14 @@ def plot_umap(source_features: torch.Tensor,
             mask_s = source_labels_np == label
             if mask_s.sum() > 0:
                 ax.scatter(embedded[:n_source][mask_s, 0], embedded[:n_source][mask_s, 1],
-                          c=[colors[i]], alpha=0.8, s=30, label=f'S-{class_name}', marker='o',
+                          c=[colors[i]], alpha=0.5, s=30, label=f'S-{class_name}', marker='o',
                           edgecolors='white', linewidths=0.8)
             
             # Target points for this class
             mask_t = target_labels_np == label
             if mask_t.sum() > 0:
                 ax.scatter(embedded[n_source:][mask_t, 0], embedded[n_source:][mask_t, 1],
-                          c=[colors[i]], alpha=0.4, s=40, label=f'T-{class_name}', marker='^',
+                          c=[colors[i]], alpha=0.2, s=50, label=f'T-{class_name}', marker='^',
                           edgecolors='white', linewidths=0.8)
         
         ax.set_title('UMAP: Class Distribution\n(Decoder Features)', fontsize=14, fontweight='bold')
@@ -214,9 +214,9 @@ def plot_umap(source_features: torch.Tensor,
     else:
         # Domain separation visualization (no labels)
         ax.scatter(embedded[:n_source, 0], embedded[:n_source, 1], 
-                  c='blue', alpha=0.6, s=30, label='Source', marker='o', edgecolors='darkblue', linewidths=0.5)
+                  c='blue', alpha=0.2, s=30, label='Source', marker='o', edgecolors='darkblue', linewidths=0.5)
         ax.scatter(embedded[n_source:, 0], embedded[n_source:, 1],
-                  c='red', alpha=0.6, s=30, label='Target', marker='^', edgecolors='darkred', linewidths=0.5)
+                  c='red', alpha=0.2, s=30, label='Target', marker='^', edgecolors='darkred', linewidths=0.5)
         ax.set_title('UMAP: Domain Alignment Visualization\n(Encoder Features)', fontsize=14, fontweight='bold')
         ax.legend(fontsize=11, loc='best')
     

@@ -305,19 +305,31 @@ class DomainAdaptationSemanticSegmentation(SemanticSegmentation):
         self.optimizer, self.scheduler = model.get_optimizer(self.cfg)
 
         is_resume = model.cfg.get('is_resume', False)
-        # For domain adaptation: load model weights but use NEW learning rate from config
+        start_epoch = 0
+        
+        # Domain adaptation can start from:
+        # 1. Pretrained checkpoint (is_resume=true + ckpt_path) - transfer learning scenario
+        # 2. Random initialization (is_resume=false) - fair comparison with vanilla training
         if is_resume and model.cfg.ckpt_path:
-            log.info("Loading pretrained model weights for domain adaptation...")
+            log.info("=" * 80)
+            log.info("TRANSFER LEARNING MODE: Loading pretrained source model")
+            log.info("=" * 80)
             ckpt = torch.load(model.cfg.ckpt_path, map_location=self.device)
             self.model.load_state_dict(ckpt['model_state_dict'])
             log.info(f"Loaded model weights from {model.cfg.ckpt_path}")
             log.info("Using NEW learning rate and scheduler from DA config (not loading optimizer state)")
-            start_epoch = 0  # Start DA training from epoch 0
+            log.info("This tests: Can DA adapt a pretrained source model to target domain?")
         else:
-            raise ValueError("For domain adaptation, provide a pretrained model checkpoint via cfg.ckpt_path")
+            log.info("=" * 80)
+            log.info("TRAINING FROM SCRATCH: Random initialization")
+            log.info("=" * 80)
+            log.info("Model will learn source task + domain alignment simultaneously")
+            log.info("This enables fair comparison with vanilla training pipeline")
+            if model.cfg.ckpt_path:
+                log.warning(f"ckpt_path is set but is_resume=false - ignoring checkpoint: {model.cfg.ckpt_path}")
 
-        # Sanity check parameters/BN stats after loading checkpoint
-        model.check_finite(reset_bn=True, raise_on_nan=True, prefix="post-load")
+        # # Sanity check parameters/BN stats after loading checkpoint
+        # model.check_finite(reset_bn=True, raise_on_nan=True, prefix="post-load")
 
         # Setup tensorboard
         tensorboard_dir = join(

@@ -1,6 +1,6 @@
 # Domain Adaptation Configuration: KPConv (KPFCNN)
-# Source: Semantic3DUnified (labeled)
-# Target: DigiForestUnified (unlabeled for training)
+# Source: Semantic3DUnified
+# Target: DigiForestUnified
 
 source_dataset:
   name: Semantic3DUnified
@@ -13,27 +13,25 @@ source_dataset:
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
-  dataloader_iterations_per_epoch_train: 150
+  dataloader_iterations_per_epoch_train: 50
   dataloader_iterations_per_epoch_valid: 10
 
 target_dataset:
   name: DigiForestUnified
-  dataset_path: /path/to/digiforest/ply/files/  # UPDATE THIS PATH
-  labels_path: /path/to/digiforest/labels/  # UPDATE THIS PATH (if separate)
-  cache_dir: ./logs/cache_kpconv_digiforest/
-  class_weights: [250789, 2377612, 20488, 179050, 196894, 1173042]
+  dataset_path: /home/fzhcis/data/DigiForests/aggregate_outputs/subsamplegrid06
+  labels_path: /home/fzhcis/data/DigiForests/aggregate_outputs/subsamplegrid06
+  cache_dir: ./logs/cache_digiforestunified_grid06/
+  class_weights: [66, 37, 58, 74]
   ignored_label_inds: [0]
-  num_points: 65536
-  test_result_folder: ./test_digiforest
-  use_cache: false
+  use_cache: true
 
 model:
   name: KPFCNNDA
   batcher: ConcatBatcher
-  ckpt_path: # Optional: path to pretrained model on source domain
+  ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/KPFCNN_Semantic3DUnified_torch/checkpoint/best_model_epoch0059_2025-12-11_22-12-37.pth
   
   # KPConv architecture
-  num_classes: 5
+  num_classes: 4
   ignored_label_inds: [0]
   in_features_dim: 3
   in_points_dim: 3
@@ -96,44 +94,50 @@ model:
   # Domain adaptation settings
   return_features: true
   alignment_layers: [0, 3, 6, 9]  # Align at multiple depths
+  is_resume: false
 
-  is_resume: true
 pipeline:
   name: DomainAdaptationSemanticSegmentation
   
-  # Domain adaptation parameters
-  coral_weight: 0.05  # Lower for KPConv (adjust based on results)
-  progressive_steps: 8000
-  alignment_layers: [0, 3, 6, 9]
-  layer_weights: [0.25, 0.25, 0.25, 0.25]  # Equal weights
-  use_geodesic: true
+  # Domain adaptation parameters - EMA-based adaptive weighting
+  # NOTE: coral_weight, progressive_steps, min_weight_ratio are IGNORED with EMA strategy
+  # The adaptive weight is automatically calculated as: seg_loss_ema / coral_loss_ema
+  coral_weight: 1.0        # Not used (kept for compatibility)
+  progressive_steps: 200   # Not used (kept for compatibility)
+  min_weight_ratio: 0.1    # Not used (kept for compatibility)
+  alignment_layers: [0, 3, 6, 9]  # MUST match model.alignment_layers!
+  layer_weights: [0.2, 0.25, 0.25, 0.3]  # Progressive weighting (4 layers)
+  use_geodesic: false
   coral_loss_type: adaptive
-  target_labeled_ratio: 0.0
+  num_target_validate_batch: 10   # Target validation batches per epoch (0 disables)
+  debug_coral_loss: false  # Enable detailed CORAL loss debugging on first iteration
   
-  # KPConv-specific training parameters
-  learning_rate: 0.01
-  lr_decays: 0.985
-  deform_lr_factor: 0.1
-  weight_decay: 0.001
-  scheduler_gamma: 0.95
-  
-  # Batch and epoch settings
-  batch_size: 24
-  val_batch_size: 24
-  test_batch_size: 24
+  # Standard training parameters
+  optimizer:
+    lr: 0.0001
+  learning_rate: 0.0001  # KPConv uses this parameter name
+  deform_lr_factor: 0.1  # Deformable conv learning rate = lr * 0.1
+  momentum: 0.98
+  weight_decay: 0.0001
+  batch_size: 8
   num_workers: 0
-  pin_memory: false
-  max_epoch: 200
-  save_ckpt_freq: 10
-  
-  # Directories
   main_log_dir: ./logs
+  max_epoch: 100
+  scheduler_gamma: 0.995
+  grad_clip_norm: 10.0  # Prevent gradient explosion
+  # test_batch_size: 24
   train_sum_dir: train_log
+  val_batch_size: 16
+  save_ckpt_freq: 5
+  monitor_freq: 3           # Encoder domain alignment monitoring frequency
+  decoder_monitor_freq: 3   # Decoder class distribution monitoring frequency
+  pin_memory: true
+  enable_tsne: false 
+  enable_umap: false 
   
-  # Early stopping
   early_stopping:
     enabled: true
-    patience: 30
+    patience: 5
     min_delta: 0.001
     monitor: 'val_iou'
   

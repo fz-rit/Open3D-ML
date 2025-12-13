@@ -7,7 +7,6 @@ dataset:
   use_cache: true
 
 
-
 model:
   name: KPFCNN
   ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/KPFCNN_Semantic3DUnified_torch/checkpoint/best_model_epoch0059_2025-12-11_22-12-37.pth
@@ -71,10 +70,10 @@ model:
 
 pipeline:
   name: SemanticSegmentation
-  batch_size: 24
+  batch_size: 18
   num_workers: 0
   main_log_dir: /home/fzhcis/mylab/Open3D-ML/logs
-  test_batch_size: 24
+  # test_batch_size: 24
   summary:
     record_for: []
     max_pts:

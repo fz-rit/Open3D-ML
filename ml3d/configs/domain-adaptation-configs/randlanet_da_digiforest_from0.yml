@@ -13,8 +13,8 @@ source_dataset:
   val_ratio: 0.15
   test_ratio: 0.15
   split_seed: 42
-  dataloader_iterations_per_epoch_train: 10
-  dataloader_iterations_per_epoch_valid: 2
+  dataloader_iterations_per_epoch_train: 20
+  dataloader_iterations_per_epoch_valid: 4
 
 target_dataset:
   name: DigiForestUnified
@@ -41,7 +41,7 @@ model:
   grid_size: 0.06
   return_features: true
   alignment_layers: [0, 2, 4]  # FULL: Multi-level alignment (tune based on pilot)
-  is_resume: true
+  is_resume: false
   augment:
     recenter:
       dim: [0, 1]
@@ -76,26 +76,26 @@ pipeline:
   
   # Standard training parameters
   optimizer:
-    lr: 0.00005
+    lr: 0.002
   batch_size: 12
   num_workers: 0
   main_log_dir: ./logs
-  max_epoch: 100
+  max_epoch: 200
   scheduler_gamma: 0.995
   grad_clip_norm: 10.0  # Prevent gradient explosion
   test_batch_size: 24
   train_sum_dir: train_log
   val_batch_size: 24
   save_ckpt_freq: 5
-  monitor_freq: 1           # Encoder domain alignment monitoring frequency
-  decoder_monitor_freq: 1   # Decoder class distribution monitoring frequency
+  monitor_freq: 10           # Encoder domain alignment monitoring frequency
+  decoder_monitor_freq: 10   # Decoder class distribution monitoring frequency
   pin_memory: false
-  enable_tsne: true 
-  enable_umap: true 
+  enable_tsne: false 
+  enable_umap: false 
   
   early_stopping:
     enabled: true
-    patience: 5
+    patience: 10
     min_delta: 0.001
     monitor: 'val_iou'
   

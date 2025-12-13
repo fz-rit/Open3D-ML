@@ -1,24 +1,14 @@
 dataset:
-  name: Semantic3DUnified
-  dataset_path: /shared/rc/mangrove/data/Semantic3D/all_remapped/
-  cache_dir: ./logs/cache_semantic3dunified_grid06/
-  class_weights: [8094, 14, 1981, 1969]
-  # ignored_label_inds:
-  # - 0
-  # test_result_folder: ./test
+  name: DigiForestUnified
+  dataset_path: /home/fzhcis/data/DigiForests/aggregate_outputs/subsamplegrid06
+  labels_path: /home/fzhcis/data/DigiForests/aggregate_outputs/subsamplegrid06
+  cache_dir: ./logs/cache_digiforestunified_grid06/
+  class_weights: [66, 37, 58, 74]
+  ignored_label_inds: [0]
   use_cache: true
-  train_ratio: 0.7
-  val_ratio: 0.15
-  test_ratio: 0.15
-  split_seed: 42
-  # DATALOADER ITERATIONS CONFIGURATION
-  # Number of weight updates (batches) per epoch.
-  # KPConv uses ConcatBatcher - actual batch points vary based on batch_limit.
-  dataloader_iterations_per_epoch_train: 150
-  dataloader_iterations_per_epoch_valid: 10
+
 model:
   name: KPFCNN
-  # ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/KPFCNN_Semantic3DUnified_torch/checkpoint/model_epoch0060_2025-12-04_00-27-02.pth
   ckpt_path: /home/fzhcis/mylab/Open3D-ML/logs/KPFCNN_Semantic3DUnified_torch/checkpoint/best_model_epoch0059_2025-12-11_22-12-37.pth
   KP_extent: 1.2
   KP_influence: linear
@@ -76,28 +66,14 @@ model:
   repulse_extent: 1.2
   use_batch_norm: true
   is_resume: true
+
+
 pipeline:
   name: SemanticSegmentation
-  # adam_lr: 0.01
-  batch_size: 24
-  learning_rate: 0.01
-  lr_decays: 0.985
-  deform_lr_factor: 0.1
-  main_log_dir: /home/fzhcis/mylab/Open3D-ML/logs
+  batch_size: 8
   num_workers: 0
-  pin_memory: false
-  max_epoch: 100
-  save_ckpt_freq: 10
-  scheduler_gamma: 0.95
-  test_batch_size: 24
-  train_sum_dir: train_log
-  val_batch_size: 24
-  weight_decay: 0.001
-  early_stopping:
-    enabled: true
-    patience: 5
-    min_delta: 0.001
-    monitor: 'val_iou'
+  main_log_dir: /home/fzhcis/mylab/Open3D-ML/logs
+  # test_batch_size: 24
   summary:
     record_for: []
     max_pts:
